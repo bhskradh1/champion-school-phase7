@@ -10,7 +10,7 @@ export default async function AssignmentsPage(){
   if(!supabase) return <Shell role="admin"><AssignmentsManagement role="admin" assignments={[]} scopes={demoScopes} subjects={demoSubjects} submissions={{}}/></Shell>;
   const {data:{user}}=await supabase.auth.getUser();
   if(!user) return <Shell role="student"><div className="empty-panel"><h3>Please sign in</h3></div></Shell>;
-  const {data:me}=await supabase.from('profiles').select('role,is_active').eq('id',user.id).single();
+  const {data:me}=await supabase.from('profiles').select('role,is_active').eq('id',user.id).maybeSingle();
   const role=me?.role||'student';
   const { classes, sections, subjects } = await getSchoolReferenceData();
   let scopes:any[]=[];

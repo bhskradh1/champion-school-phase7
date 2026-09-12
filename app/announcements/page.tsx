@@ -9,7 +9,7 @@ export default async function AnnouncementsPage(){
   if(!supabase) return <Shell role="admin"><AnnouncementsManagement role="admin" announcements={demoAnnouncements}/></Shell>;
   const {data:{user}}=await supabase.auth.getUser();
   if(!user) return <Shell role="student"><div className="empty-panel"><Bell size={28}/><h3>Please sign in</h3></div></Shell>;
-  const {data:me}=await supabase.from('profiles').select('role,is_active').eq('id',user.id).single();
+  const {data:me}=await supabase.from('profiles').select('role,is_active').eq('id',user.id).maybeSingle();
   const role=me?.role||'student';
   const {data:announcements}=await supabase.from('announcements').select('id,title,body,target_audience,is_published,published_at,expires_at,created_at,created_by,profiles!announcements_created_by_fkey(full_name)').order('created_at',{ascending:false});
   return <Shell role={role}><AnnouncementsManagement role={role} announcements={announcements||[]}/></Shell>;

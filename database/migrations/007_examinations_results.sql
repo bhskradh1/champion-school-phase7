@@ -164,7 +164,7 @@ returns integer language plpgsql security definer set search_path=public as $$
 declare
   e public.examinations;
   inserted_count integer := 0;
-  ta record;
+  ta_row record;
   ms_id uuid;
   en record;
 begin
@@ -172,19 +172,23 @@ begin
   select * into e from public.examinations where id=p_exam_id for update;
   if not found then raise exception 'Examination not found'; end if;
   update public.examinations set status='open' where id=p_exam_id;
-  for ta in select distinct on (ta.class_id, coalesce(ta.section_id,'00000000-0000-0000-0000-000000000000'::uuid), ta.subject_id)
-      ta.class_id,ta.section_id,ta.subject_id,ta.teacher_id
-    from public.teacher_assignments ta
-    join public.classes c on c.id=ta.class_id and c.academic_year_id=e.academic_year_id
-    where ta.subject_id is not null
-    order by ta.class_id,coalesce(ta.section_id,'00000000-0000-0000-0000-000000000000'::uuid),ta.subject_id,ta.is_class_teacher desc,ta.teacher_id
+  for ta_row in
+    select distinct on (t.class_id, coalesce(t.section_id,'00000000-0000-0000-0000-000000000000'::uuid), t.subject_id)
+      t.class_id,
+      t.section_id,
+      t.subject_id,
+      t.teacher_id
+    from public.teacher_assignments t
+    join public.classes c on c.id=t.class_id and c.academic_year_id=e.academic_year_id
+    where t.subject_id is not null
+    order by t.class_id, coalesce(t.section_id,'00000000-0000-0000-0000-000000000000'::uuid), t.subject_id, t.is_class_teacher desc, t.teacher_id
   loop
-    if ta.section_id is null then
-      for en in select se.* from public.student_enrollments se where se.class_id=ta.class_id and se.is_active and se.academic_year_id=e.academic_year_id loop
+    if ta_row.section_id is null then
+      for en in select se.* from public.student_enrollments se where se.class_id=ta_row.class_id and se.is_active and se.academic_year_id=e.academic_year_id loop
         -- Whole-class teaching assignment is expanded into each enrolled section below.
-        select id into ms_id from public.exam_mark_sheets where examination_id=p_exam_id and class_id=ta.class_id and section_id=en.section_id and subject_id=ta.subject_id;
+        select id into ms_id from public.exam_mark_sheets where examination_id=p_exam_id and class_id=ta_row.class_id and section_id=en.section_id and subject_id=ta_row.subject_id;
         if ms_id is null then
-          insert into public.exam_mark_sheets(examination_id,class_id,section_id,subject_id,teacher_id) values(p_exam_id,ta.class_id,en.section_id,ta.subject_id,ta.teacher_id) returning id into ms_id;
+          insert into public.exam_mark_sheets(examination_id,class_id,section_id,subject_id,teacher_id) values(p_exam_id,ta_row.class_id,en.section_id,ta_row.subject_id,ta_row.teacher_id) returning id into ms_id;
         end if;
         insert into public.exam_marks(mark_sheet_id,examination_id,student_id,enrollment_id,max_marks)
           values(ms_id,p_exam_id,en.student_id,en.id,100) on conflict do nothing;
@@ -192,12 +196,12 @@ begin
       end loop;
     else
       insert into public.exam_mark_sheets(examination_id,class_id,section_id,subject_id,teacher_id)
-      values(p_exam_id,ta.class_id,ta.section_id,ta.subject_id,ta.teacher_id)
+      values(p_exam_id,ta_row.class_id,ta_row.section_id,ta_row.subject_id,ta_row.teacher_id)
       on conflict(examination_id,class_id,section_id,subject_id) do update set teacher_id=excluded.teacher_id
       returning id into ms_id;
       insert into public.exam_marks(mark_sheet_id,examination_id,student_id,enrollment_id,max_marks)
         select ms_id,p_exam_id,se.student_id,se.id,100 from public.student_enrollments se
-        where se.class_id=ta.class_id and se.section_id=ta.section_id and se.is_active and se.academic_year_id=e.academic_year_id
+        where se.class_id=ta_row.class_id and se.section_id=ta_row.section_id and se.is_active and se.academic_year_id=e.academic_year_id
         on conflict do nothing;
       inserted_count := inserted_count + row_count;
     end if;

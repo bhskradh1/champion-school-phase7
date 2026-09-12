@@ -9,7 +9,7 @@ export default async function ExaminationsPage(){
  const supabase=await createClient();
  if(!supabase) return <Shell role="admin"><ExaminationsManagement role="admin" exams={demoExams} sheets={[]} marks={[]} results={[]} classes={demoClasses} sections={demoSections} subjects={demoSubjects} years={demoYears}/></Shell>;
  const {data:{user}}=await supabase.auth.getUser(); if(!user) return <Shell role="student"><div className="empty-panel"><h3>Please sign in</h3></div></Shell>;
- const {data:me}=await supabase.from('profiles').select('role,is_active').eq('id',user.id).single(); const role=me?.role||'student';
+ const {data:me}=await supabase.from('profiles').select('role,is_active').eq('id',user.id).maybeSingle(); const role=me?.role||'student';
  const { classes, sections, subjects, years } = await getSchoolReferenceData();
  const {data:exams}=await supabase.from('examinations').select('id,academic_year_id,term,name,starts_on,ends_on,marks_deadline,status,created_at').order('starts_on',{ascending:false,nullsFirst:false});
  const list=exams||[]; const examId=list[0]?.id; let sheets:any[]=[],marks:any[]=[],results:any[]=[];

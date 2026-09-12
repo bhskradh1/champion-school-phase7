@@ -10,7 +10,7 @@ export default async function ProfilePage(){
   if(supabase){
     const {data:{user}}=await supabase.auth.getUser();
     if(user){
-      const {data:p}=await supabase.from('profiles').select('full_name,email,phone,is_active').eq('id',user.id).single();
+      const {data:p}=await supabase.from('profiles').select('full_name,email,phone,is_active').eq('id',user.id).maybeSingle();
       const {data:e}=await supabase.from('student_enrollments').select('admission_no,roll_no,classes(name,grade),sections(name),academic_years(name)').eq('student_id',user.id).eq('is_active',true).order('created_at',{ascending:false}).limit(1).maybeSingle();
       profile=p||profile; enrollment=e;
     }

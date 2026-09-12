@@ -16,8 +16,8 @@ export default async function StudentsPage() {
   const { data:{ user } } = await supabase.auth.getUser();
   if (!user) return <Shell canManage={false} students={[]} classes={[]} sections={[]} years={[]} requests={[]}/>;
 
-  const { data: me } = await supabase.from('profiles').select('role,is_active').eq('id',user.id).single();
-  const canManage = me?.role === 'admin' && me.is_active === true;
+  const { data: me } = await supabase.from('profiles').select('role,is_active').eq('id',user.id).maybeSingle();
+  const canManage = me?.role === 'admin' && me?.is_active === true;
 
   const reference = await getSchoolReferenceData();
 

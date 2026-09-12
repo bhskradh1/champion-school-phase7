@@ -10,7 +10,7 @@ export default async function DiscussionsPage(){
   if(!supabase) return <Shell role="admin"><DiscussionsManagement role="admin" threads={demoThreads} replies={[]} votes={[]} pollOptions={[]} scopes={demoScopes}/></Shell>;
   const {data:{user}}=await supabase.auth.getUser();
   if(!user) return <Shell role="student"><div className="empty-panel"><h3>Please sign in</h3></div></Shell>;
-  const {data:me}=await supabase.from('profiles').select('role,is_active').eq('id',user.id).single();
+  const {data:me}=await supabase.from('profiles').select('role,is_active').eq('id',user.id).maybeSingle();
   const role=me?.role||'student';
   const { classes, sections } = await getSchoolReferenceData();
   let scopes:any[]=[];

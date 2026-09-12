@@ -9,7 +9,7 @@ export default async function NotificationsPage(){
   if(!supabase)return <Shell role="admin"><NotificationsCenter notifications={demoNotifications}/></Shell>;
   const {data:{user}}=await supabase.auth.getUser();
   if(!user)return <Shell role="student"><div className="empty-panel"><Bell size={28}/><h3>Please sign in</h3></div></Shell>;
-  const {data:me}=await supabase.from('profiles').select('role').eq('id',user.id).single();
+  const {data:me}=await supabase.from('profiles').select('role').eq('id',user.id).maybeSingle();
   const {data:notifications}=await supabase.from('notifications').select('id,announcement_id,kind,title,body,created_at,read_at').order('created_at',{ascending:false});
   return <Shell role={me?.role||'student'}><NotificationsCenter notifications={notifications||[]}/></Shell>;
 }

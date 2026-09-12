@@ -11,7 +11,7 @@ export default async function AttendancePage(){
   if(!supabase) return <Shell role="admin"><AttendanceManagement role="admin" scopes={demoScopes} classes={[]} sections={[]} studentsByScope={demoRoster} initialRecords={{}} initialDate={today}/></Shell>;
   const {data:{user}}=await supabase.auth.getUser();
   if(!user) return <Shell role="student"><div className="empty-panel"><h3>Please sign in</h3></div></Shell>;
-  const {data:me}=await supabase.from('profiles').select('role,is_active,full_name').eq('id',user.id).single();
+  const {data:me}=await supabase.from('profiles').select('role,is_active,full_name').eq('id',user.id).maybeSingle();
   const role=me?.role||'student';
   if(role==='student'){
     const {data:records}=await supabase.from('attendance_records').select('id,attendance_date,status,note,class_id,section_id,classes(name,grade),sections(name)').eq('student_id',user.id).order('attendance_date',{ascending:false});
