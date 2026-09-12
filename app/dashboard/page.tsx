@@ -10,23 +10,46 @@ export default async function Dashboard() {
   if (supabase) {
     const { data:{ user } } = await supabase.auth.getUser();
     if (user) {
-      const { data: profile } = await supabase.from('profiles').select('full_name, role').eq('id',user.id).single();
-      displayName=profile?.full_name || user.email?.split('@')[0] || displayName; role=profile?.role || role;
-      const {count:unread}=await supabase.from('notifications').select('id',{count:'exact',head:true}).is('read_at',null);
-      unreadNotifications=unread||0;
-      if(role==='student'){
-        const {data:e}=await supabase.from('student_enrollments').select('admission_no,roll_no,classes(name,grade),sections(name),academic_years(name)').eq('student_id',user.id).eq('is_active',true).order('created_at',{ascending:false}).limit(1).maybeSingle();
-        enrollment=e;
+      const [profileResult, unreadResult] = await Promise.all([
+        supabase.from('profiles').select('full_name, role').eq('id', user.id).single(),
+        supabase.from('notifications').select('id', { count: 'exact', head: true }).is('read_at', null),
+      ]);
+
+      const profile = profileResult.data;
+      displayName = profile?.full_name || user.email?.split('@')[0] || displayName;
+      role = profile?.role || role;
+      unreadNotifications = unreadResult.count || 0;
+
+      if (role === 'student') {
+        const { data: e } = await supabase
+          .from('student_enrollments')
+          .select('admission_no,roll_no,classes(name,grade),sections(name),academic_years(name)')
+          .eq('student_id', user.id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        enrollment = e;
       }
-      if(role==='teacher'){
-        const {data:a}=await supabase.from('teacher_assignments').select('id,class_id,section_id,subject_id,is_class_teacher,classes(name,grade),sections(name),subjects(name)').eq('teacher_id',user.id);
-        assignments=a||[];
-        const {count}=await supabase.from('student_approval_requests').select('id',{count:'exact',head:true}).eq('status','pending');
-        pending=count||0;
+
+      if (role === 'teacher') {
+        const [assignmentsResult, pendingResult] = await Promise.all([
+          supabase.from('teacher_assignments').select('id,class_id,section_id,subject_id,is_class_teacher,classes(name,grade),sections(name),subjects(name)').eq('teacher_id', user.id),
+          supabase.from('student_approval_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        ]);
+
+        assignments = assignmentsResult.data || [];
+        pending = pendingResult.count || 0;
       }
-      if(role==='admin'){
-        const {count}=await supabase.from('profiles').select('id',{count:'exact',head:true}).eq('role','student').eq('is_active',true); studentCount=count||0;
-        const {count:pc}=await supabase.from('student_approval_requests').select('id',{count:'exact',head:true}).eq('status','pending'); pending=pc||0;
+
+      if (role === 'admin') {
+        const [studentCountResult, pendingResult] = await Promise.all([
+          supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'student').eq('is_active', true),
+          supabase.from('student_approval_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        ]);
+
+        studentCount = studentCountResult.count || 0;
+        pending = pendingResult.count || 0;
       }
     }
   }
