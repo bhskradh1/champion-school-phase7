@@ -32,10 +32,28 @@ export default async function Dashboard() {
   }
 
   const first=displayName.split(' ')[0];
-  return <div className="app-shell"><Sidebar role={role}/><main className="main"><header className="topbar"><div className="mobile-menu"><Menu size={20}/></div><div className="search"><Search size={18}/><input placeholder="Search students, teachers, classes..."/><kbd>⌘ K</kbd></div><div className="top-actions"><Link className="icon-btn" href="/notifications" aria-label="Open notification centre"><Bell size={19}/>{unreadNotifications>0&&<i/>}</Link><div className="top-profile"><div className="avatar">{displayName.split(' ').map(x=>x[0]).slice(0,2).join('')}</div><span>{role==='admin'?'Admin':displayName}</span><ChevronDown size={16}/></div></div></header>
+  return <><script dangerouslySetInnerHTML={{__html: `
+    (function(){
+      function toggleSidebar(){ document.body.classList.toggle('sidebar-open'); }
+      function bindButtons(){
+        const buttons = document.querySelectorAll('.mobile-menu');
+        buttons.forEach((button) => {
+          if (button.dataset.bound === 'true') return;
+          button.dataset.bound = 'true';
+          button.addEventListener('click', toggleSidebar);
+        });
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bindButtons);
+      } else {
+        bindButtons();
+      }
+    })();
+  `}} />
+  <div className="app-shell"><Sidebar role={role}/><main className="main"><header className="topbar"><button type="button" className="mobile-menu" aria-label="Open navigation"><Menu size={20}/></button><div className="search"><Search size={18}/><input placeholder="Search students, teachers, classes..."/><kbd>⌘ K</kbd></div><div className="top-actions"><Link className="icon-btn" href="/notifications" aria-label="Open notification centre"><Bell size={19}/>{unreadNotifications>0&&<i/>}</Link><div className="top-profile"><div className="avatar">{displayName.split(' ').map(x=>x[0]).slice(0,2).join('')}</div><span>{role==='admin'?'Admin':displayName}</span><ChevronDown size={16}/></div></div></header>
   <div className="content">
     {role==='admin' ? <AdminDashboard first={first} pending={pending} studentCount={studentCount}/> : role==='teacher' ? <TeacherDashboard first={first} assignments={assignments} pending={pending}/> : <StudentDashboard first={first} enrollment={enrollment}/>}
-  </div></main></div>;
+  </div></main></div></>;
 }
 
 function AdminDashboard({first,pending,studentCount}:{first:string;pending:number;studentCount:number}){
