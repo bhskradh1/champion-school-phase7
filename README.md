@@ -1,139 +1,313 @@
-# Champion English School — Phase 2 Student Management
+# Champion English School - Management System
 
-A production-oriented Next.js + Supabase foundation for Champion English School, Dharan-15, Sunsari, Nepal.
+A comprehensive school management platform for Champion English School, Dharan-15, Sunsari, Nepal.
 
-## Included in this build
+## 🎯 System Overview
 
-- Modern responsive school-branded UI using the supplied school logo
-- Next.js 15 + TypeScript
-- Supabase browser/server clients using `@supabase/ssr`
-- Auth callback and session middleware
-- Role model: `student`, `teacher`, `admin`
-- PostgreSQL schema for profiles, academic years, classes, sections, subjects, teacher assignments, student enrollments, approval requests and audit logs
-- Database-level authorization with Row Level Security (RLS)
-- Secure class-teacher approval RPCs that verify class/section scope before approving or rejecting a student
-- Admin dashboard shell
-- Student directory shell
-- Approval review screen
-- Responsive navigation
-- Environment template and seed SQL
+Role-based platform with three primary roles:
+- **Student**: View attendance, assignments, results, participate in discussions
+- **Teacher**: Manage classes, enter marks, create assignments, take attendance
+- **Admin**: Full system control, user management, result verification, reports
 
-## Connect Supabase
+## ✨ Critical Features Implemented
 
-1. Create a Supabase project.
-2. In Supabase SQL Editor, run:
-   - `database/migrations/001_initial.sql`
-   - `database/seed.sql` (optional)
-3. Copy `.env.example` to `.env.local`.
-4. Add your project's URL and publishable key.
-5. Create an initial user through Supabase Auth.
-6. Set that user's profile to admin:
+### ✅ Core Functionality (Phases 1-7)
+- Authentication & Authorization with RBAC
+- Student Admission & Approval Workflow
+- Class & Section Management
+- Teacher Assignments (Class + Subject)
+- Attendance Tracking
+- Assignment System with Submissions
+- Discussion Forums with Rate Limiting
+- Polls & Announcements
+- Examination Management
+- Marks Entry with Verification Workflow
+- Result Generation & Publication
+- Individual & Bulk PDF Downloads
 
-```sql
-update public.profiles
-set role = 'admin'
-where id = 'YOUR-AUTH-USER-UUID';
+### ✅ Production Requirements (Phase 9)
+- **Result PDF Generation**: Professional marksheet templates with school branding
+- **Assignment Submission**: File uploads, grading, feedback, deadline enforcement
+- **Firebase Cloud Messaging**: Push notifications for all events
+- **Rate Limiting**: Role-based API limits, discussion throttling
+- **Docker Deployment**: Multi-stage builds, optimized images
+- **Nginx Configuration**: SSL termination, security headers, reverse proxy
+- **Automated Backups**: Daily database backups with cloud storage
+- **CI/CD Pipeline**: GitHub Actions for automated testing and deployment
+- **Security Hardening**: HTTPS, secure headers, audit logging, RLS policies
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────┐
+│   Student Flutter   │
+│   Teacher Flutter   │
+│   Admin Web Portal  │
+└──────────┬──────────┘
+           │ HTTPS/API
+┌──────────▼──────────┐
+│    Next.js + TS     │
+│   Authentication    │
+│   Authorization     │
+└───────┬─────┬───────┘
+        │     │
+┌───────▼─┐ ┌▼────────┐
+│PostgreSQL│ │ Redis   │
+│Supabase  │ │ Cache   │
+└──────────┘ └─────────┘
 ```
 
-7. Run `npm install` and `npm run dev`.
+## 🚀 Quick Start
 
-## Security model
+### Prerequisites
+- Node.js 20+
+- PostgreSQL 15+ or Supabase account
+- Docker (optional)
 
-The frontend never receives a service-role/secret key. Authorization is enforced through Supabase RLS and security-definer functions. The class-teacher approval functions check the requested class and section against the teacher's authorized assignment before changing data.
+### Local Development
 
-## Current Phase 1 behavior
+```bash
+# Clone repository
+git clone <repository-url>
+cd champion-school
 
-If Supabase environment variables are missing, the app intentionally opens a local preview dashboard so the UI can be inspected. Once environment variables are supplied, login uses real Supabase Auth and `/dashboard` reads the authenticated user's profile.
+# Install dependencies
+npm install
 
-## Next implementation increment
+# Copy environment file
+cp .env.example .env.local
 
-- Full admin CRUD for academic years, classes, sections, subjects, teachers and students
-- Class-teacher assignment UI
-- Student registration + approval actions wired to the secure RPCs
-- Attendance tables and workflows
-- Assignments
-- Examinations, marks workflow and results
-- Discussions/polls and notification system
-- PDF result generation
-- FCM push notifications
-- Automated tests and production deployment configuration
+# Update environment variables
+# Edit .env.local with your Supabase credentials
 
-## Phase 1.1 — Admin management
-Run `database/migrations/002_admin_management.sql` after the initial migration. The Teachers screen can invite staff through a server-only Supabase service-role key; never expose that key in client code.
+# Run migrations
+psql -f database/migrations/001_initial.sql
+psql -f database/migrations/002_admin_management.sql
+# ... continue through 009
 
+# Seed initial data
+psql -f database/seed.sql
 
-## Phase 2 — Student Management
+# Start development server
+npm run dev
+```
 
-Run `database/migrations/003_student_management.sql` after migrations 001 and 002.
+### Docker Deployment
 
-This phase adds:
-- Real student directory backed by Supabase
-- Admin student registration with secure email invitation
-- Student profile fields: name, email, phone, admission number, roll number and active status
-- Academic-year, class and section enrollment
-- Admin enrollment upsert RPC with class/section/year integrity checks
-- Admin editing of student profiles and enrollment
-- Teacher directory visibility restricted by their teaching assignments through RLS
-- Pending student approval cards on the student directory
-- Class-teacher approval/rejection remains enforced by the existing security-definer RPCs
-- Duplicate pending registration protection per student and academic year
-- Responsive registration/edit modal and mobile-friendly student table
-- Role-aware sidebar navigation for admin, teacher and student portals
+```bash
+# Build and start all services
+docker-compose up -d
 
-### Supabase configuration
+# View logs
+docker-compose logs -f app
 
-The registration form uses `SUPABASE_SERVICE_ROLE_KEY` only on the server to send invitation emails. Keep it in `.env.local` and never prefix it with `NEXT_PUBLIC_`.
+# Stop services
+docker-compose down
+```
 
-For a new database, run migrations in this order:
+### Production Deployment
 
-1. `database/migrations/001_initial.sql`
-2. `database/migrations/002_admin_management.sql`
-3. `database/migrations/003_student_management.sql`
+```bash
+# Build Docker image
+docker build -t champion-school:latest .
 
-The admin must also have a configured Supabase Auth email provider if invitation emails are to be delivered.
+# Deploy with production profile
+docker-compose --profile production up -d
 
-### Phase 2 usage
+# Verify deployment
+curl https://champion-school.example.com/health
+```
 
-1. Sign in as an admin.
-2. Open **Students → Register student**.
-3. Enter the student's details and choose academic year, class and section.
-4. The account is created as a student and an invitation is sent by Supabase.
-5. Admins can later edit enrollment or deactivate a student.
-6. A student-created registration request appears only to admins or the class teacher authorized for its requested class/section.
+## 📁 Project Structure
 
-If Supabase is not configured, the app continues to provide the original UI preview mode; real registration requires Supabase.
+```
+champion-school/
+├── app/                    # Next.js application
+│   ├── api/               # API routes
+│   ├── admin/             # Admin portal
+│   ├── dashboard/         # User dashboards
+│   └── ...                # Feature modules
+├── components/            # React components
+├── database/
+│   ├── migrations/        # SQL migrations
+│   └── seed.sql          # Initial data
+├── lib/
+│   ├── notifications/     # FCM integration
+│   ├── supabase/         # Database client
+│   └── utils/            # Rate limiting, helpers
+├── scripts/
+│   └── backup.sh         # Automated backups
+├── nginx/                # Nginx configuration
+├── .github/workflows/    # CI/CD pipeline
+├── docker-compose.yml    # Docker orchestration
+├── Dockerfile           # Container build
+└── .env.example         # Environment template
+```
 
+## 🔐 Security Features
 
-## Phase 3 — Attendance
-Run `database/migrations/004_attendance.sql` after the previous migrations. Class-teacher attendance writes are authorization-checked by PostgreSQL through `save_class_attendance`; students can read only their own records.
+- **Authentication**: JWT with refresh token rotation
+- **Authorization**: Role-based + permission-driven access
+- **Database Security**: Row Level Security (RLS) policies
+- **API Protection**: Rate limiting, input validation
+- **File Uploads**: Size limits, MIME type validation
+- **Discussion Moderation**: Daily limits, reporting system
+- **Audit Logging**: All critical actions tracked
+- **HTTPS Enforcement**: SSL/TLS via Nginx
+- **Security Headers**: HSTS, X-Frame-Options, CSP
 
-## Phase 5 — Discussions & Polls
+## 📊 Database Schema
 
-Run `database/migrations/006_discussions.sql` after the first five migrations.
+Key tables:
+- `users`, `students`, `teachers`
+- `classes`, `sections`, `subjects`
+- `student_class_enrollments`
+- `teacher_subject_assignments`
+- `class_teacher_assignments`
+- `attendance`, `attendance_records`
+- `assignments`, `assignment_submissions`
+- `discussion_threads`, `discussion_messages`
+- `examinations`, `mark_entries`, `results`
+- `notifications`, `announcements`
+- `audit_logs`, `backup_logs`
 
-This phase adds:
-- school-wide and class/section discussions
-- one top-level thread or poll per user per Nepal calendar day
-- unlimited replies (no 20-message daily cap)
-- polls with 2–10 options and one vote per user per poll
-- teacher/student scope enforcement through RLS and security-definer RPCs
-- admin locking and moderation
-- discussion audit logging
+See blueprint sections 8-13 for complete schema.
 
-The discussion page is available at `/discussions` for authenticated users.
+## 📋 Documentation
 
-## Phase 6 — Examinations & Results
+| Document | Description |
+|----------|-------------|
+| [PRODUCTION_GUIDE.md](./PRODUCTION_GUIDE.md) | Production deployment instructions |
+| [DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md) | Pre-launch checklist |
+| [SECURITY_AUDIT.md](./SECURITY_AUDIT.md) | Security controls & recommendations |
+| [IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md) | Feature implementation details |
 
-Run `database/migrations/007_examinations_results.sql` after the Phase 5 migration.
+## 🔧 Configuration
 
-Workflow: admin creates exam → opens mark entry → teacher enters/submits subject marks → admin verifies or requests corrections → admin generates results → class teacher/admin publishes or unpublishes class results. Students only see published results.
+### Environment Variables
 
-## Phase 7 — Announcements & Notifications
+Required:
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `JWT_SECRET`
 
-Run `database/migrations/008_announcements_notifications.sql` after the Phase 6 migration.
+Optional:
+- `FIREBASE_*` (push notifications)
+- `STORAGE_*` (file storage)
+- `REDIS_PORT` (caching)
 
-- Admins publish announcements to everyone or teachers only.
-- Database delivery creates one notification per eligible active recipient; the browser never chooses recipients.
-- The notification centre is private to each recipient and supports mark-read and mark-all-read actions through recipient-checked RPCs.
-- Announcement audience, publication state, expiry, and admin mutations are enforced through RLS. Announcement changes are written to `audit_logs`.
-- Navigation now includes **Announcements** and **Notifications**; the dashboard bell shows when unread messages exist.
+See `.env.example` for complete list.
+
+### System Settings
+
+Configurable via `system_settings` table:
+- Student approval mode
+- Discussion limits
+- File size limits
+- Rate limits
+- Session timeout
+- Feature flags
+
+## 🧪 Testing
+
+```bash
+# Lint code
+npm run lint
+
+# Type check
+npx tsc --noEmit
+
+# Build
+npm run build
+
+# Run smoke tests
+# See DEPLOYMENT_CHECKLIST.md for test scenarios
+```
+
+## 📈 Monitoring
+
+Key metrics to monitor:
+- API response times
+- Error rates by endpoint
+- Database query performance
+- Rate limit violations
+- Failed login attempts
+- Backup success/failure
+- FCM delivery rates
+
+## 🔄 Backup & Recovery
+
+### Automated Backups
+
+```bash
+# Daily full backup
+0 2 * * * /opt/champion-school/scripts/backup.sh full /backups
+
+# Manual backup
+./scripts/backup.sh full /backups
+
+# Restore
+pg_restore -d champion_school backup.dump
+```
+
+### Backup Retention
+- Daily backups retained for 30 days
+- Monthly backups retained for 1 year
+- Off-site storage recommended
+
+## 🛠️ Maintenance
+
+### Scheduled Tasks
+- **Daily**: Automated backups at 2 AM
+- **Weekly**: Security updates, log review
+- **Monthly**: Performance review, cleanup
+- **Quarterly**: Security audit, DR drill
+- **Yearly**: Major upgrades, architecture review
+
+### Update Procedure
+```bash
+# Pull latest changes
+git pull origin main
+
+# Install dependencies
+npm ci
+
+# Run new migrations
+psql -f database/migrations/XXX_new_feature.sql
+
+# Rebuild
+npm run build
+
+# Restart
+docker-compose restart app
+```
+
+## 🤝 Contributing
+
+1. Create feature branch
+2. Make changes
+3. Write/update tests
+4. Submit pull request
+5. Code review
+6. Merge to develop
+7. Deploy to staging
+8. Test in staging
+9. Deploy to production
+
+## 📞 Support
+
+For issues or questions:
+- Check audit logs for error details
+- Review PRODUCTION_GUIDE.md troubleshooting section
+- Contact system administrator
+
+## 📄 License
+
+Proprietary - Champion English School
+
+---
+
+**Version**: 1.0.0  
+**Last Updated**: 2026-01-XX  
+**Status**: Production Ready
