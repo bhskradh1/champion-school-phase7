@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { Bell, BookOpen, CalendarCheck2, ClipboardList, GraduationCap, LayoutDashboard, MessageSquareText, Settings, ShieldCheck, Users, UserRoundCheck, X } from 'lucide-react';
+import { Bell, BookOpen, CalendarCheck2, ClipboardList, GraduationCap, LayoutDashboard, MessageSquareText, Settings, ShieldCheck, Users, UserRoundCheck } from 'lucide-react';
 import SignOut from './sign-out';
 
 export default function Sidebar({ role='admin' }: { role?: string }) {
@@ -28,7 +28,6 @@ export default function Sidebar({ role='admin' }: { role?: string }) {
     <aside className="sidebar">
       <div className="sidebar-mobile-header">
         <div className="side-brand"><img src="/school-logo.jpg" alt="Champion English School"/><div><strong>Champion</strong><span>English School</span></div></div>
-        <button type="button" className="sidebar-close" aria-label="Close navigation" onClick={closeSidebar}><X size={18}/></button>
       </div>
       <div className="side-label">WORKSPACE</div>
       <nav>{items.map(([href,Icon,label])=><Link key={label} className="nav-item" href={href} onClick={closeSidebar}><Icon size={18}/>{label}</Link>)}</nav>
@@ -41,7 +40,6 @@ export default function Sidebar({ role='admin' }: { role?: string }) {
         {student && <Link className="nav-item" href="/profile" onClick={closeSidebar}><Users size={18}/>My profile</Link>}
         {student && <Link className="nav-item" href="/results" onClick={closeSidebar}><GraduationCap size={18}/>My results</Link>}
       </nav>
-      {admin && <div className="side-alert"><UserRoundCheck size={18}/><div><strong>Approvals</strong><span>Review pending students</span></div><Link href="/admin/approvals" onClick={closeSidebar}>Review</Link></div>}
       <div className="side-footer"><div className="admin-mini"><div className="avatar">{admin?'AD':teacher?'TC':'ST'}</div><div><strong>{admin?'School Admin':teacher?'Teacher Portal':'Student Portal'}</strong><span>{role}</span></div></div><SignOut/></div>
     </aside>
   </>;

@@ -3,6 +3,7 @@ import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import Sidebar from '@/components/sidebar';
 import AttendanceManagement, { AttendanceStudentView } from '@/components/attendance-management';
 import { createClient } from '@/lib/supabase/server';
+import { getSchoolReferenceData } from '@/lib/supabase/cache';
 
 export default async function AttendancePage(){
   const supabase=await createClient();
@@ -21,8 +22,7 @@ export default async function AttendancePage(){
     const {data}=await supabase.from('teacher_assignments').select('class_id,section_id,is_class_teacher,classes(name,grade),sections(name)').eq('teacher_id',user.id).eq('is_class_teacher',true);
     assignments=data||[];
   }
-  const {data:classes}=await supabase.from('classes').select('id,name,grade,academic_year_id').order('grade');
-  const {data:sections}=await supabase.from('sections').select('id,name,class_id').order('name');
+  const { classes, sections } = await getSchoolReferenceData();
   const scopes=(role==='admin'
     ? (sections||[]).map(s=>{const c=(classes||[]).find(c=>c.id===s.class_id);return c?{class_id:c.id,section_id:s.id,class_name:c.name,grade:c.grade,section_name:s.name}:null}).filter(Boolean)
     : assignments.map(a=>a.sections?{class_id:a.class_id,section_id:a.section_id,class_name:a.classes?.name||'',grade:a.classes?.grade||0,section_name:a.sections?.name||''}:null).filter(Boolean)

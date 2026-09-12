@@ -3,6 +3,7 @@ import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import Sidebar from '@/components/sidebar';
 import AssignmentsManagement from '@/components/assignments-management';
 import { createClient } from '@/lib/supabase/server';
+import { getSchoolReferenceData } from '@/lib/supabase/cache';
 
 export default async function AssignmentsPage(){
   const supabase=await createClient();
@@ -11,11 +12,7 @@ export default async function AssignmentsPage(){
   if(!user) return <Shell role="student"><div className="empty-panel"><h3>Please sign in</h3></div></Shell>;
   const {data:me}=await supabase.from('profiles').select('role,is_active').eq('id',user.id).single();
   const role=me?.role||'student';
-  const [{data:classes},{data:sections},{data:subjects}]=await Promise.all([
-    supabase.from('classes').select('id,name,grade,academic_year_id').order('grade'),
-    supabase.from('sections').select('id,name,class_id').order('name'),
-    supabase.from('subjects').select('id,name,code').order('name')
-  ]);
+  const { classes, sections, subjects } = await getSchoolReferenceData();
   let scopes:any[]=[];
   if(role==='teacher'){
     const {data}=await supabase.from('teacher_assignments').select('id,class_id,section_id,subject_id,is_class_teacher,classes(name,grade),sections(name),subjects(name,code)').eq('teacher_id',user.id);

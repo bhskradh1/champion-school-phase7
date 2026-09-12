@@ -1,6 +1,7 @@
 import Link from 'next/link';
-import { ArrowUpRight, Bell, BookOpen, CalendarCheck2, ChevronDown, ClipboardList, GraduationCap, Menu, MessageSquareText, Search, ShieldCheck, Users, UserRoundCheck } from 'lucide-react';
+import { ArrowUpRight, Bell, BookOpen, CalendarCheck2, ChevronDown, ClipboardList, GraduationCap, Menu, MessageSquareText, ShieldCheck, Users, UserRoundCheck } from 'lucide-react';
 import Sidebar from '@/components/sidebar';
+import SignOut from '@/components/sign-out';
 import { createClient } from '@/lib/supabase/server';
 
 export default async function Dashboard() {
@@ -73,7 +74,7 @@ export default async function Dashboard() {
       }
     })();
   `}} />
-  <div className="app-shell"><Sidebar role={role}/><main className="main"><header className="topbar"><button type="button" className="mobile-menu" aria-label="Open navigation"><Menu size={20}/></button><div className="search"><Search size={18}/><input placeholder="Search students, teachers, classes..."/><kbd>⌘ K</kbd></div><div className="top-actions"><Link className="icon-btn" href="/notifications" aria-label="Open notification centre"><Bell size={19}/>{unreadNotifications>0&&<i/>}</Link><div className="top-profile"><div className="avatar">{displayName.split(' ').map(x=>x[0]).slice(0,2).join('')}</div><span>{role==='admin'?'Admin':displayName}</span><ChevronDown size={16}/></div></div></header>
+  <div className="app-shell"><Sidebar role={role}/><main className="main"><header className="topbar"><button type="button" className="mobile-menu" aria-label="Open navigation"><Menu size={20}/></button><div className="top-actions"><Link className="icon-btn" href="/notifications" aria-label="Open notification centre"><Bell size={19}/>{unreadNotifications>0&&<i/>}</Link>{role === 'admin' && <SignOut />}<div className="top-profile"><div className="avatar">{displayName.split(' ').map(x=>x[0]).slice(0,2).join('')}</div><span>{role==='admin'?'Admin':displayName}</span><ChevronDown size={16}/></div></div></header>
   <div className="content">
     {role==='admin' ? <AdminDashboard first={first} pending={pending} studentCount={studentCount}/> : role==='teacher' ? <TeacherDashboard first={first} assignments={assignments} pending={pending}/> : <StudentDashboard first={first} enrollment={enrollment}/>}
   </div></main></div></>;
@@ -82,7 +83,7 @@ export default async function Dashboard() {
 function AdminDashboard({first,pending,studentCount}:{first:string;pending:number;studentCount:number}){
  return <><section className="welcome"><div><span className="section-kicker">SCHOOL ADMINISTRATION</span><h1>Good afternoon, {first} <span>👋</span></h1><p>Here’s what is happening across Champion English School today.</p></div><div className="security-chip"><ShieldCheck size={16}/> Secure admin workspace</div></section>
  <section className="stat-grid">{([['Active students',String(studentCount),'Live from Supabase',GraduationCap,'blue'],['Pending approvals',String(pending),'Needs review',UserRoundCheck,'rose'],['Teachers','—','Open teacher directory',Users,'violet'],['Classes & sections','—','Manage academic structure',BookOpen,'amber']] as [string,string,string,typeof GraduationCap,string][]).map(([label,value,delta,Icon,tone])=><div className="stat-card" key={String(label)}><div className={'stat-icon '+tone}><Icon size={20}/></div><div className="stat-copy"><span>{label}</span><strong>{value}</strong><small>{delta}</small></div><ArrowUpRight className="stat-arrow" size={17}/></div>)}</section>
- <section className="dashboard-grid"><div className="panel"><div className="panel-head"><div><h3>Student management</h3><p>Register, assign and maintain student records.</p></div><Link className="ghost-btn" href="/students">Open directory <ArrowUpRight size={15}/></Link></div><div className="quick-grid"><Link href="/students"><GraduationCap size={18}/><strong>Students</strong><span>Registration & enrollment</span></Link><Link href="/admin/approvals"><UserRoundCheck size={18}/><strong>Approvals</strong><span>{pending} pending requests</span></Link><Link href="/classes"><BookOpen size={18}/><strong>Classes</strong><span>Sections & subjects</span></Link></div></div>
+ <section className="dashboard-grid"><div className="panel"><div className="panel-head"><div><h3>Student management</h3><p>Register, assign and maintain student records.</p></div><Link className="ghost-btn" href="/students">Open directory <ArrowUpRight size={15}/></Link></div><div className="quick-grid"><Link href="/students"><GraduationCap size={18}/><strong>Students</strong><span>Registration & enrollment</span></Link><Link href="/classes"><BookOpen size={18}/><strong>Classes</strong><span>Sections & subjects</span></Link></div></div>
  <div className="panel"><div className="panel-head"><div><h3>Security model</h3><p>Authorization is enforced in PostgreSQL.</p></div><ShieldCheck size={18}/></div><div className="security-list"><div><ShieldCheck size={16}/><span>Admin actions</span><strong>RLS + role check</strong></div><div><ShieldCheck size={16}/><span>Class teacher approvals</span><strong>Class/section scoped</strong></div><div><ShieldCheck size={16}/><span>Student data</span><strong>Teaching-scope read</strong></div></div></div></section></>;
 }
 

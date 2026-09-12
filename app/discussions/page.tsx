@@ -3,6 +3,7 @@ import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import Sidebar from '@/components/sidebar';
 import DiscussionsManagement from '@/components/discussions-management';
 import { createClient } from '@/lib/supabase/server';
+import { getSchoolReferenceData } from '@/lib/supabase/cache';
 
 export default async function DiscussionsPage(){
   const supabase=await createClient();
@@ -11,6 +12,7 @@ export default async function DiscussionsPage(){
   if(!user) return <Shell role="student"><div className="empty-panel"><h3>Please sign in</h3></div></Shell>;
   const {data:me}=await supabase.from('profiles').select('role,is_active').eq('id',user.id).single();
   const role=me?.role||'student';
+  const { classes, sections } = await getSchoolReferenceData();
   let scopes:any[]=[];
   if(role==='teacher'){
     const {data}=await supabase.from('teacher_assignments').select('id,class_id,section_id,classes(name),sections(name)').eq('teacher_id',user.id);
@@ -19,8 +21,7 @@ export default async function DiscussionsPage(){
     const {data}=await supabase.from('student_enrollments').select('class_id,section_id,classes(name),sections(name)').eq('student_id',user.id).eq('is_active',true).limit(1).single();
     if(data) scopes=[{class_id:data.class_id,section_id:data.section_id,class_name:(data as any).classes?.name||'',section_name:(data as any).sections?.name||'',label:`${(data as any).classes?.name||'Class'} · ${(data as any).sections?.name||'Section'}`}];
   } else {
-    const {data:c}=await supabase.from('classes').select('id,name'); const {data:s}=await supabase.from('sections').select('id,name,class_id');
-    scopes=(c||[]).flatMap((x:any)=>(s||[]).filter((z:any)=>z.class_id===x.id).map((z:any)=>({class_id:x.id,section_id:z.id,class_name:x.name,section_name:z.name,label:`${x.name} · ${z.name}`})));
+    scopes=(classes||[]).flatMap((x:any)=>(sections||[]).filter((z:any)=>z.class_id===x.id).map((z:any)=>({class_id:x.id,section_id:z.id,class_name:x.name,section_name:z.name,label:`${x.name} · ${z.name}`})));
   }
   const select='id,author_id,audience,class_id,section_id,kind,title,body,created_at,is_locked,is_deleted,created_day,profiles!discussion_threads_author_id_fkey(full_name),classes(name),sections(name)';
   const {data:threads}=await supabase.from('discussion_threads').select(select).eq('is_deleted',false).order('created_at',{ascending:false});
