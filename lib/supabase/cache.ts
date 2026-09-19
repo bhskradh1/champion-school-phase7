@@ -1,4 +1,3 @@
-import { unstable_cache } from 'next/cache';
 import { createClient } from './server';
 
 export type SchoolReferenceData = {
@@ -8,27 +7,44 @@ export type SchoolReferenceData = {
   years: any[];
 };
 
-export const getSchoolReferenceData = unstable_cache(
-  async (): Promise<SchoolReferenceData> => {
-    const supabase = await createClient();
-    if (!supabase) {
-      return { classes: [], sections: [], subjects: [], years: [] };
-    }
+export async function getSchoolReferenceData(): Promise<SchoolReferenceData> {
+  const supabase = await createClient();
 
-    const [{ data: classes }, { data: sections }, { data: subjects }, { data: years }] = await Promise.all([
-      supabase.from('classes').select('id,name,grade,academic_year_id').order('grade'),
-      supabase.from('sections').select('id,name,class_id').order('name'),
-      supabase.from('subjects').select('id,name,code').order('name'),
-      supabase.from('academic_years').select('id,name,is_current').order('starts_on', { ascending: false }),
-    ]);
+  if (!supabase) {
+    return { classes: [], sections: [], subjects: [], years: [] };
+  }
 
-    return {
-      classes: classes || [],
-      sections: sections || [],
-      subjects: subjects || [],
-      years: years || [],
-    };
-  },
-  ['school-reference-data'],
-  { revalidate: 300, tags: ['school-reference-data'] }
-);
+  const [
+    { data: classes },
+    { data: sections },
+    { data: subjects },
+    { data: years }
+  ] = await Promise.all([
+    supabase
+      .from('classes')
+      .select('id,name,grade,academic_year_id')
+      .order('grade'),
+
+    supabase
+      .from('sections')
+      .select('id,name,class_id')
+      .order('name'),
+
+    supabase
+      .from('subjects')
+      .select('id,name,code')
+      .order('name'),
+
+    supabase
+      .from('academic_years')
+      .select('id,name,is_current')
+      .order('starts_on', { ascending: false })
+  ]);
+
+  return {
+    classes: classes || [],
+    sections: sections || [],
+    subjects: subjects || [],
+    years: years || [],
+  };
+}
