@@ -8,15 +8,14 @@ import {
   ClipboardList,
   GraduationCap,
   LayoutDashboard,
-  Menu,
   MessageSquareText,
+  Menu,
   Settings,
   ShieldCheck,
   Users,
-  UserRoundCheck,
   X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import SignOut from './sign-out';
 
@@ -31,12 +30,52 @@ export default function Sidebar({
   const teacher = role === 'teacher';
   const student = role === 'student';
 
-  const closeSidebar = () => {
-    setOpen(false);
-  };
+  /*
+   * Prevent background scrolling while the mobile
+   * navigation is open.
+   */
+  useEffect(() => {
+    if (open && window.innerWidth <= 760) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [open]);
+
+  /*
+   * Automatically close mobile navigation when
+   * switching back to desktop width.
+   */
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 760) {
+        setOpen(false);
+      }
+    };
+
+    window.addEventListener(
+      'resize',
+      handleResize
+    );
+
+    return () => {
+      window.removeEventListener(
+        'resize',
+        handleResize
+      );
+    };
+  }, []);
 
   const toggleSidebar = () => {
     setOpen((current) => !current);
+  };
+
+  const closeSidebar = () => {
+    setOpen(false);
   };
 
   const items = [
@@ -44,7 +83,8 @@ export default function Sidebar({
       '/dashboard',
       LayoutDashboard,
       'Dashboard',
-    ],
+    ] as const,
+
     ...(admin || teacher
       ? [
           [
@@ -54,6 +94,7 @@ export default function Sidebar({
           ] as const,
         ]
       : []),
+
     ...(admin
       ? [
           [
@@ -61,6 +102,7 @@ export default function Sidebar({
             GraduationCap,
             'Teachers',
           ] as const,
+
           [
             '/classes',
             BookOpen,
@@ -68,22 +110,25 @@ export default function Sidebar({
           ] as const,
         ]
       : []),
+
     [
       '/attendance',
       CalendarCheck2,
       'Attendance',
-    ],
+    ] as const,
+
     [
       '/assignments',
       ClipboardList,
       'Assignments',
-    ],
+    ] as const,
+
     [
       '/discussions',
       MessageSquareText,
       'Discussions',
-    ],
-  ] as const;
+    ] as const,
+  ];
 
   return (
     <>
@@ -106,7 +151,7 @@ export default function Sidebar({
         )}
       </button>
 
-      {/* Mobile overlay */}
+      {/* Mobile background overlay */}
       <button
         type="button"
         className={
@@ -118,6 +163,7 @@ export default function Sidebar({
         onClick={closeSidebar}
       />
 
+      {/* Sidebar */}
       <aside
         className={
           open
@@ -125,6 +171,7 @@ export default function Sidebar({
             : 'sidebar'
         }
       >
+        {/* Mobile sidebar header */}
         <div className="sidebar-mobile-header">
           <div className="side-brand">
             <img
