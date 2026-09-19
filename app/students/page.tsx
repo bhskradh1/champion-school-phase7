@@ -1,3 +1,4 @@
+```tsx
 import Link from 'next/link';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 
@@ -80,10 +81,7 @@ export default async function StudentsPage() {
     profile?.is_active === true;
 
   /*
-   * Start reference data and all student queries
-   * at the same time.
-   *
-   * This avoids unnecessary sequential waits.
+   * Load the required data in parallel.
    */
   const [
     reference,
@@ -93,6 +91,9 @@ export default async function StudentsPage() {
   ] = await Promise.all([
     getSchoolReferenceData(),
 
+    /*
+     * Students
+     */
     supabase
       .from('profiles')
       .select(
@@ -101,6 +102,9 @@ export default async function StudentsPage() {
       .eq('role', 'student')
       .order('full_name'),
 
+    /*
+     * Student enrollments
+     */
     supabase
       .from('student_enrollments')
       .select(
@@ -110,6 +114,9 @@ export default async function StudentsPage() {
         ascending: false,
       }),
 
+    /*
+     * Pending approval requests
+     */
     supabase
       .from('student_approval_requests')
       .select(`
@@ -139,12 +146,9 @@ export default async function StudentsPage() {
     requestsResult.data || [];
 
   /*
-   * Fast student -> enrollment lookup.
+   * Create a fast student -> enrollment lookup.
    *
-   * This avoids doing:
-   *
-   * enrollments.find(...)
-   *
+   * This is much faster than calling .find()
    * for every student.
    */
   const enrollmentByStudentId =
@@ -163,6 +167,9 @@ export default async function StudentsPage() {
     }
   }
 
+  /*
+   * Combine student and enrollment data.
+   */
   const rows = students.map(
     (student) => ({
       ...student,
@@ -250,3 +257,4 @@ function Shell({
     </div>
   );
 }
+```
