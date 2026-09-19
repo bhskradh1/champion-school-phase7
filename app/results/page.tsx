@@ -25,9 +25,7 @@ export default async function ResultsPage() {
         <div className="empty-panel">
           <GraduationCap size={28} />
 
-          <h3>
-            Preview results
-          </h3>
+          <h3>Preview results</h3>
 
           <p>
             Connect Supabase to view
@@ -45,9 +43,7 @@ export default async function ResultsPage() {
     return (
       <Shell>
         <div className="empty-panel">
-          <h3>
-            Please sign in
-          </h3>
+          <h3>Please sign in</h3>
         </div>
       </Shell>
     );
@@ -57,25 +53,8 @@ export default async function ResultsPage() {
     profile?.role || 'student';
 
   /*
-   * ============================================================
-   * PERFORMANCE FIX
-   * ============================================================
-   *
-   * OLD:
-   *
-   * 1. Query exam_results
-   * 2. Query exam_results AGAIN just for IDs
-   * 3. Query exam_result_items
-   *
-   * NEW:
-   *
-   * 1. Query exam_results once
-   * 2. Extract IDs in memory
-   * 3. Query exam_result_items once
-   *
-   * This removes one complete database round trip.
+   * Query published results ONCE.
    */
-
   const {
     data: results,
     error: resultsError,
@@ -118,9 +97,6 @@ export default async function ResultsPage() {
       }
     );
 
-  /*
-   * Handle query errors safely.
-   */
   if (resultsError) {
     return (
       <Shell role={role}>
@@ -143,8 +119,10 @@ export default async function ResultsPage() {
     results || [];
 
   /*
-   * Extract result IDs from the query
-   * we already made.
+   * Extract result IDs from the results
+   * we already fetched.
+   *
+   * No duplicate exam_results query.
    */
   const resultIds =
     safeResults.map(
@@ -154,8 +132,8 @@ export default async function ResultsPage() {
   let items: any[] = [];
 
   /*
-   * Don't make a database call when
-   * there are no published results.
+   * Only query result items when there
+   * are actually published results.
    */
   if (resultIds.length > 0) {
     const {
@@ -205,8 +183,7 @@ export default async function ResultsPage() {
 
   return (
     <Shell role={role}>
-      {safeResults.length ===
-      0 ? (
+      {safeResults.length === 0 ? (
         <div className="empty-panel">
           <GraduationCap size={28} />
 
@@ -215,16 +192,14 @@ export default async function ResultsPage() {
           </h3>
 
           <p>
-            Your school will publish
-            your result after marks are
-            verified and generated.
+            Your school will publish your
+            result after marks are verified
+            and generated.
           </p>
         </div>
       ) : (
         <StudentResults
-          results={
-            safeResults
-          }
+          results={safeResults}
           items={items}
         />
       )}
@@ -251,28 +226,20 @@ function Shell({
                 href="/dashboard"
                 className="back-link"
               >
-                <ArrowLeft
-                  size={16}
-                />
+                <ArrowLeft size={16} />
                 Dashboard
               </Link>
 
-              <h1>
-                My Results
-              </h1>
+              <h1>My Results</h1>
 
               <p>
-                Published examination
-                results and
-                subject-wise
-                performance.
+                Published examination results
+                and subject-wise performance.
               </p>
             </div>
 
             <div className="security-chip">
-              <ShieldCheck
-                size={16}
-              />
+              <ShieldCheck size={16} />
               Published only
             </div>
           </div>
