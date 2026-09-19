@@ -1,4 +1,3 @@
-```tsx
 import Link from 'next/link';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 
@@ -81,7 +80,10 @@ export default async function StudentsPage() {
     profile?.is_active === true;
 
   /*
-   * Load data in parallel.
+   * Start reference data and all student queries
+   * at the same time.
+   *
+   * This avoids unnecessary sequential waits.
    */
   const [
     reference,
@@ -91,9 +93,6 @@ export default async function StudentsPage() {
   ] = await Promise.all([
     getSchoolReferenceData(),
 
-    /*
-     * Students
-     */
     supabase
       .from('profiles')
       .select(
@@ -102,29 +101,28 @@ export default async function StudentsPage() {
       .eq('role', 'student')
       .order('full_name'),
 
-    /*
-     * Student enrollments
-     */
     supabase
       .from('student_enrollments')
       .select(
-        'id,student_id,class_id,section_id,academic_year_id,admission_no,roll_no,is_active,created_at'
+        'id,student_id,class_id,section_id,academic_year_id,admission_no,roll_no,is_active'
       )
       .order('created_at', {
         ascending: false,
       }),
 
-    /*
-     * Pending approval requests.
-     *
-     * Keep this query simple to avoid problems
-     * with the Supabase relationship syntax.
-     */
     supabase
       .from('student_approval_requests')
-      .select(
-        'id,student_id,created_at,requested_class,requested_section'
-      )
+      .select(`
+        id,
+        student_id,
+        created_at,
+        requested_class,
+        requested_section,
+        student:profiles!student_approval_requests_student_id_fkey(
+          full_name,
+          email
+        )
+      `)
       .eq('status', 'pending')
       .order('created_at', {
         ascending: false,
@@ -141,7 +139,13 @@ export default async function StudentsPage() {
     requestsResult.data || [];
 
   /*
-   * Create a fast student -> enrollment lookup.
+   * Fast student -> enrollment lookup.
+   *
+   * This avoids doing:
+   *
+   * enrollments.find(...)
+   *
+   * for every student.
    */
   const enrollmentByStudentId =
     new Map<string, any>();
@@ -159,9 +163,6 @@ export default async function StudentsPage() {
     }
   }
 
-  /*
-   * Combine student and enrollment data.
-   */
   const rows = students.map(
     (student) => ({
       ...student,
@@ -249,4 +250,3 @@ function Shell({
     </div>
   );
 }
-```
