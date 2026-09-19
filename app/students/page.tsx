@@ -10,22 +10,18 @@ export default async function StudentsPage() {
   const supabase = await createClient();
 
   if (!supabase) {
-    const demoClasses = [
-      { id: 'c8', name: 'Grade 8', grade: 8 },
-      { id: 'c9', name: 'Grade 9', grade: 9 },
-    ];
-
-    const demoSections = [
-      { id: 's8a', name: 'A', class_id: 'c8' },
-      { id: 's9a', name: 'A', class_id: 'c9' },
-    ];
-
     return (
       <Shell
         canManage
         students={[]}
-        classes={demoClasses}
-        sections={demoSections}
+        classes={[
+          { id: 'c8', name: 'Grade 8', grade: 8 },
+          { id: 'c9', name: 'Grade 9', grade: 9 },
+        ]}
+        sections={[
+          { id: 's8a', name: 'A', class_id: 'c8' },
+          { id: 's9a', name: 'A', class_id: 'c9' },
+        ]}
         years={[
           {
             id: 'y1',
@@ -38,8 +34,6 @@ export default async function StudentsPage() {
     );
   }
 
-  // Get the current user first because the remaining queries depend on
-  // knowing who is making the request.
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -58,10 +52,8 @@ export default async function StudentsPage() {
   }
 
   /*
-   * Run the profile query and school reference-data query together.
-   *
-   * Previously reference data was fetched first and then the other
-   * database queries were started. This removes that waterfall.
+   * Start profile and reference-data queries together.
+   * This removes a server-side waterfall.
    */
   const [meResult, reference] = await Promise.all([
     supabase
@@ -80,7 +72,7 @@ export default async function StudentsPage() {
     me?.is_active === true;
 
   /*
-   * Run all three main queries at the same time.
+   * Start all main student queries together.
    */
   const [
     studentsResult,
@@ -100,7 +92,9 @@ export default async function StudentsPage() {
       .select(
         'id,student_id,class_id,section_id,academic_year_id,admission_no,roll_no,is_active'
       )
-      .order('created_at', { ascending: false }),
+      .order('created_at', {
+        ascending: false,
+      }),
 
     supabase
       .from('student_approval_requests')
@@ -118,25 +112,20 @@ export default async function StudentsPage() {
         `
       )
       .eq('status', 'pending')
-      .order('created_at', { ascending: false }),
+      .order('created_at', {
+        ascending: false,
+      }),
   ]);
 
   const students = studentsResult.data || [];
-  const enrollments = enrollmentsResult.data || [];
-  const requests = requestsResult.data || [];
+  const enrollments =
+    enrollmentsResult.data || [];
+  const requests =
+    requestsResult.data || [];
 
   /*
-   * IMPORTANT PERFORMANCE FIX:
-   *
-   * The old code did:
-   *
-   * students.map(student =>
-   *   enrollments.find(...)
-   * )
-   *
-   * That repeatedly searched the entire enrollment array.
-   *
-   * A Map gives us effectively O(1) lookup by student ID.
+   * Create one fast lookup map instead of calling
+   * enrollments.find(...) for every student.
    */
   const enrollmentByStudentId = new Map<
     string,
@@ -144,9 +133,15 @@ export default async function StudentsPage() {
   >();
 
   for (const enrollment of enrollments) {
-    // Keep the newest enrollment because the query is ordered
-    // newest first.
-    if (!enrollmentByStudentId.has(enrollment.student_id)) {
+    /*
+     * Because the query is newest-first, keep
+     * the first enrollment for each student.
+     */
+    if (
+      !enrollmentByStudentId.has(
+        enrollment.student_id
+      )
+    ) {
       enrollmentByStudentId.set(
         enrollment.student_id,
         enrollment
@@ -156,7 +151,10 @@ export default async function StudentsPage() {
 
   const rows = students.map((student) => ({
     ...student,
-    enrollment: enrollmentByStudentId.get(student.id),
+    enrollment:
+      enrollmentByStudentId.get(
+        student.id
+      ),
   }));
 
   return (
@@ -166,7 +164,7 @@ export default async function StudentsPage() {
       classes={reference.classes}
       sections={reference.sections}
       years={reference.years}
-      requests={requests as any[]}
+      requests={requests}
     />
   );
 }
@@ -188,7 +186,11 @@ function Shell({
 }) {
   return (
     <div className="app-shell">
-      <Sidebar role={canManage ? 'admin' : 'teacher'} />
+      <Sidebar
+        role={
+          canManage ? 'admin' : 'teacher'
+        }
+      />
 
       <main className="main">
         <div className="content">
