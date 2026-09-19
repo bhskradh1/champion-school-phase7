@@ -3,24 +3,49 @@ import { ArrowLeft, ShieldCheck } from 'lucide-react';
 
 import Sidebar from '@/components/sidebar';
 import StudentManagement from '@/components/student-management';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth/current-user';
 import { getSchoolReferenceData } from '@/lib/supabase/cache';
 
 export default async function StudentsPage() {
-  const supabase = await createClient();
+  const auth = await getCurrentUser();
 
+  const {
+    supabase,
+    userId,
+    profile,
+  } = auth;
+
+  /*
+   * Demo/fallback mode
+   */
   if (!supabase) {
     return (
       <Shell
-        canManage
+        canManage={true}
         students={[]}
         classes={[
-          { id: 'c8', name: 'Grade 8', grade: 8 },
-          { id: 'c9', name: 'Grade 9', grade: 9 },
+          {
+            id: 'c8',
+            name: 'Grade 8',
+            grade: 8,
+          },
+          {
+            id: 'c9',
+            name: 'Grade 9',
+            grade: 9,
+          },
         ]}
         sections={[
-          { id: 's8a', name: 'A', class_id: 'c8' },
-          { id: 's9a', name: 'A', class_id: 'c9' },
+          {
+            id: 's8a',
+            name: 'A',
+            class_id: 'c8',
+          },
+          {
+            id: 's9a',
+            name: 'A',
+            class_id: 'c9',
+          },
         ]}
         years={[
           {
@@ -34,11 +59,10 @@ export default async function StudentsPage() {
     );
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  /*
+   * No authenticated user.
+   */
+  if (!userId) {
     return (
       <Shell
         canManage={false}
@@ -51,34 +75,24 @@ export default async function StudentsPage() {
     );
   }
 
-  /*
-   * Start profile and reference-data queries together.
-   * This removes a server-side waterfall.
-   */
-  const [meResult, reference] = await Promise.all([
-    supabase
-      .from('profiles')
-      .select('role,is_active')
-      .eq('id', user.id)
-      .maybeSingle(),
-
-    getSchoolReferenceData(),
-  ]);
-
-  const me = meResult.data;
-
   const canManage =
-    me?.role === 'admin' &&
-    me?.is_active === true;
+    profile?.role === 'admin' &&
+    profile?.is_active === true;
 
   /*
-   * Start all main student queries together.
+   * Start reference data and all student queries
+   * at the same time.
+   *
+   * This avoids unnecessary sequential waits.
    */
   const [
+    reference,
     studentsResult,
     enrollmentsResult,
     requestsResult,
   ] = await Promise.all([
+    getSchoolReferenceData(),
+
     supabase
       .from('profiles')
       .select(
@@ -98,45 +112,45 @@ export default async function StudentsPage() {
 
     supabase
       .from('student_approval_requests')
-      .select(
-        `
-          id,
-          student_id,
-          created_at,
-          requested_class,
-          requested_section,
-          student:profiles!student_approval_requests_student_id_fkey(
-            full_name,
-            email
-          )
-        `
-      )
+      .select(`
+        id,
+        student_id,
+        created_at,
+        requested_class,
+        requested_section,
+        student:profiles!student_approval_requests_student_id_fkey(
+          full_name,
+          email
+        )
+      `)
       .eq('status', 'pending')
       .order('created_at', {
         ascending: false,
       }),
   ]);
 
-  const students = studentsResult.data || [];
+  const students =
+    studentsResult.data || [];
+
   const enrollments =
     enrollmentsResult.data || [];
+
   const requests =
     requestsResult.data || [];
 
   /*
-   * Create one fast lookup map instead of calling
-   * enrollments.find(...) for every student.
+   * Fast student -> enrollment lookup.
+   *
+   * This avoids doing:
+   *
+   * enrollments.find(...)
+   *
+   * for every student.
    */
-  const enrollmentByStudentId = new Map<
-    string,
-    any
-  >();
+  const enrollmentByStudentId =
+    new Map<string, any>();
 
   for (const enrollment of enrollments) {
-    /*
-     * Because the query is newest-first, keep
-     * the first enrollment for each student.
-     */
     if (
       !enrollmentByStudentId.has(
         enrollment.student_id
@@ -149,13 +163,15 @@ export default async function StudentsPage() {
     }
   }
 
-  const rows = students.map((student) => ({
-    ...student,
-    enrollment:
-      enrollmentByStudentId.get(
-        student.id
-      ),
-  }));
+  const rows = students.map(
+    (student) => ({
+      ...student,
+      enrollment:
+        enrollmentByStudentId.get(
+          student.id
+        ),
+    })
+  );
 
   return (
     <Shell
@@ -188,7 +204,9 @@ function Shell({
     <div className="app-shell">
       <Sidebar
         role={
-          canManage ? 'admin' : 'teacher'
+          canManage
+            ? 'admin'
+            : 'teacher'
         }
       />
 
@@ -220,7 +238,7 @@ function Shell({
           </div>
 
           <StudentManagement
-            students={students}
+            students={rows}
             classes={classes}
             sections={sections}
             years={years}
