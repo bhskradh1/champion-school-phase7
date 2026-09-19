@@ -81,7 +81,7 @@ export default async function StudentsPage() {
     profile?.is_active === true;
 
   /*
-   * Load the required data in parallel.
+   * Load data in parallel.
    */
   const [
     reference,
@@ -108,28 +108,23 @@ export default async function StudentsPage() {
     supabase
       .from('student_enrollments')
       .select(
-        'id,student_id,class_id,section_id,academic_year_id,admission_no,roll_no,is_active'
+        'id,student_id,class_id,section_id,academic_year_id,admission_no,roll_no,is_active,created_at'
       )
       .order('created_at', {
         ascending: false,
       }),
 
     /*
-     * Pending approval requests
+     * Pending approval requests.
+     *
+     * Keep this query simple to avoid problems
+     * with the Supabase relationship syntax.
      */
     supabase
       .from('student_approval_requests')
-      .select(`
-        id,
-        student_id,
-        created_at,
-        requested_class,
-        requested_section,
-        student:profiles!student_approval_requests_student_id_fkey(
-          full_name,
-          email
-        )
-      `)
+      .select(
+        'id,student_id,created_at,requested_class,requested_section'
+      )
       .eq('status', 'pending')
       .order('created_at', {
         ascending: false,
@@ -147,9 +142,6 @@ export default async function StudentsPage() {
 
   /*
    * Create a fast student -> enrollment lookup.
-   *
-   * This is much faster than calling .find()
-   * for every student.
    */
   const enrollmentByStudentId =
     new Map<string, any>();
