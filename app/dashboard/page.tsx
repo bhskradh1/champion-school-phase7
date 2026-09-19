@@ -1,101 +1,753 @@
 import Link from 'next/link';
-import { ArrowUpRight, Bell, BookOpen, CalendarCheck2, ChevronDown, ClipboardList, GraduationCap, Menu, MessageSquareText, ShieldCheck, Users, UserRoundCheck } from 'lucide-react';
+import {
+  ArrowUpRight,
+  Bell,
+  BookOpen,
+  CalendarCheck2,
+  ChevronDown,
+  ClipboardList,
+  GraduationCap,
+  MessageSquareText,
+  ShieldCheck,
+  Users,
+  UserRoundCheck,
+} from 'lucide-react';
+
 import Sidebar from '@/components/sidebar';
 import SignOut from '@/components/sign-out';
 import { createClient } from '@/lib/supabase/server';
 
 export default async function Dashboard() {
   const supabase = await createClient();
-  let displayName='School Admin', role='admin';
-  let enrollment:any=null, assignments:any[]=[]; let pending=0; let studentCount=0; let unreadNotifications=0;
+
+  let displayName = 'School Admin';
+  let role = 'admin';
+
+  let enrollment: any = null;
+  let assignments: any[] = [];
+  let pending = 0;
+  let studentCount = 0;
+  let unreadNotifications = 0;
+
   if (supabase) {
-    const { data:{ user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (user) {
-      const [profileResult, unreadResult] = await Promise.all([
-        supabase.from('profiles').select('full_name, role').eq('id', user.id).single(),
-        supabase.from('notifications').select('id', { count: 'exact', head: true }).is('read_at', null),
+      const [
+        profileResult,
+        unreadResult,
+      ] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('full_name, role')
+          .eq('id', user.id)
+          .single(),
+
+        supabase
+          .from('notifications')
+          .select('id', {
+            count: 'exact',
+            head: true,
+          })
+          .is('read_at', null),
       ]);
 
       const profile = profileResult.data;
-      displayName = profile?.full_name || user.email?.split('@')[0] || displayName;
+
+      displayName =
+        profile?.full_name ||
+        user.email?.split('@')[0] ||
+        displayName;
+
       role = profile?.role || role;
-      unreadNotifications = unreadResult.count || 0;
+
+      unreadNotifications =
+        unreadResult.count || 0;
 
       if (role === 'student') {
-        const { data: e } = await supabase
-          .from('student_enrollments')
-          .select('admission_no,roll_no,classes(name,grade),sections(name),academic_years(name)')
-          .eq('student_id', user.id)
-          .eq('is_active', true)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        const { data: e } =
+          await supabase
+            .from('student_enrollments')
+            .select(
+              'admission_no,roll_no,classes(name,grade),sections(name),academic_years(name)'
+            )
+            .eq(
+              'student_id',
+              user.id
+            )
+            .eq('is_active', true)
+            .order(
+              'created_at',
+              {
+                ascending: false,
+              }
+            )
+            .limit(1)
+            .maybeSingle();
+
         enrollment = e;
       }
 
       if (role === 'teacher') {
-        const [assignmentsResult, pendingResult] = await Promise.all([
-          supabase.from('teacher_assignments').select('id,class_id,section_id,subject_id,is_class_teacher,classes(name,grade),sections(name),subjects(name)').eq('teacher_id', user.id),
-          supabase.from('student_approval_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        const [
+          assignmentsResult,
+          pendingResult,
+        ] = await Promise.all([
+          supabase
+            .from('teacher_assignments')
+            .select(
+              'id,class_id,section_id,subject_id,is_class_teacher,classes(name,grade),sections(name),subjects(name)'
+            )
+            .eq(
+              'teacher_id',
+              user.id
+            ),
+
+          supabase
+            .from(
+              'student_approval_requests'
+            )
+            .select('id', {
+              count: 'exact',
+              head: true,
+            })
+            .eq(
+              'status',
+              'pending'
+            ),
         ]);
 
-        assignments = assignmentsResult.data || [];
-        pending = pendingResult.count || 0;
+        assignments =
+          assignmentsResult.data || [];
+
+        pending =
+          pendingResult.count || 0;
       }
 
       if (role === 'admin') {
-        const [studentCountResult, pendingResult] = await Promise.all([
-          supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'student').eq('is_active', true),
-          supabase.from('student_approval_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+        const [
+          studentCountResult,
+          pendingResult,
+        ] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('id', {
+              count: 'exact',
+              head: true,
+            })
+            .eq(
+              'role',
+              'student'
+            )
+            .eq(
+              'is_active',
+              true
+            ),
+
+          supabase
+            .from(
+              'student_approval_requests'
+            )
+            .select('id', {
+              count: 'exact',
+              head: true,
+            })
+            .eq(
+              'status',
+              'pending'
+            ),
         ]);
 
-        studentCount = studentCountResult.count || 0;
-        pending = pendingResult.count || 0;
+        studentCount =
+          studentCountResult.count || 0;
+
+        pending =
+          pendingResult.count || 0;
       }
     }
   }
 
-  const first=displayName.split(' ')[0];
-  return <><script dangerouslySetInnerHTML={{__html: `
-    (function(){
-      function toggleSidebar(){ document.body.classList.toggle('sidebar-open'); }
-      function bindButtons(){
-        const buttons = document.querySelectorAll('.mobile-menu');
-        buttons.forEach((button) => {
-          if (button.dataset.bound === 'true') return;
-          button.dataset.bound = 'true';
-          button.addEventListener('click', toggleSidebar);
-        });
-      }
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', bindButtons);
-      } else {
-        bindButtons();
-      }
-    })();
-  `}} />
-  <div className="app-shell"><Sidebar role={role}/><main className="main"><header className="topbar"><button type="button" className="mobile-menu" aria-label="Open navigation"><Menu size={20}/></button><div className="top-actions"><Link className="icon-btn" href="/notifications" aria-label="Open notification centre"><Bell size={19}/>{unreadNotifications>0&&<i/>}</Link>{role === 'admin' && <SignOut />}<div className="top-profile"><div className="avatar">{displayName.split(' ').map(x=>x[0]).slice(0,2).join('')}</div><span>{role==='admin'?'Admin':displayName}</span><ChevronDown size={16}/></div></div></header>
-  <div className="content">
-    {role==='admin' ? <AdminDashboard first={first} pending={pending} studentCount={studentCount}/> : role==='teacher' ? <TeacherDashboard first={first} assignments={assignments} pending={pending}/> : <StudentDashboard first={first} enrollment={enrollment}/>}
-  </div></main></div></>;
+  const first =
+    displayName.split(' ')[0];
+
+  const initials = displayName
+    .split(' ')
+    .map((x) => x[0])
+    .slice(0, 2)
+    .join('');
+
+  return (
+    <div className="app-shell">
+      <Sidebar role={role} />
+
+      <main className="main">
+        <header className="topbar">
+          <div className="top-actions">
+            <Link
+              className="icon-btn"
+              href="/notifications"
+              aria-label="Open notification centre"
+            >
+              <Bell size={19} />
+
+              {unreadNotifications >
+                0 && <i />}
+            </Link>
+
+            {role === 'admin' && (
+              <SignOut />
+            )}
+
+            <div className="top-profile">
+              <div className="avatar">
+                {initials}
+              </div>
+
+              <span>
+                {role === 'admin'
+                  ? 'Admin'
+                  : displayName}
+              </span>
+
+              <ChevronDown size={16} />
+            </div>
+          </div>
+        </header>
+
+        <div className="content">
+          {role === 'admin' ? (
+            <AdminDashboard
+              first={first}
+              pending={pending}
+              studentCount={
+                studentCount
+              }
+            />
+          ) : role === 'teacher' ? (
+            <TeacherDashboard
+              first={first}
+              assignments={
+                assignments
+              }
+              pending={pending}
+            />
+          ) : (
+            <StudentDashboard
+              first={first}
+              enrollment={
+                enrollment
+              }
+            />
+          )}
+        </div>
+      </main>
+    </div>
+  );
 }
 
-function AdminDashboard({first,pending,studentCount}:{first:string;pending:number;studentCount:number}){
- return <><section className="welcome"><div><span className="section-kicker">SCHOOL ADMINISTRATION</span><h1>Good afternoon, {first} <span>👋</span></h1><p>Here’s what is happening across Champion English School today.</p></div><div className="security-chip"><ShieldCheck size={16}/> Secure admin workspace</div></section>
- <section className="stat-grid">{([['Active students',String(studentCount),'Live from Supabase',GraduationCap,'blue'],['Pending approvals',String(pending),'Needs review',UserRoundCheck,'rose'],['Teachers','—','Open teacher directory',Users,'violet'],['Classes & sections','—','Manage academic structure',BookOpen,'amber']] as [string,string,string,typeof GraduationCap,string][]).map(([label,value,delta,Icon,tone])=><div className="stat-card" key={String(label)}><div className={'stat-icon '+tone}><Icon size={20}/></div><div className="stat-copy"><span>{label}</span><strong>{value}</strong><small>{delta}</small></div><ArrowUpRight className="stat-arrow" size={17}/></div>)}</section>
- <section className="dashboard-grid"><div className="panel"><div className="panel-head"><div><h3>Student management</h3><p>Register, assign and maintain student records.</p></div><Link className="ghost-btn" href="/students">Open directory <ArrowUpRight size={15}/></Link></div><div className="quick-grid"><Link href="/students"><GraduationCap size={18}/><strong>Students</strong><span>Registration & enrollment</span></Link><Link href="/classes"><BookOpen size={18}/><strong>Classes</strong><span>Sections & subjects</span></Link></div></div>
- <div className="panel"><div className="panel-head"><div><h3>Security model</h3><p>Authorization is enforced in PostgreSQL.</p></div><ShieldCheck size={18}/></div><div className="security-list"><div><ShieldCheck size={16}/><span>Admin actions</span><strong>RLS + role check</strong></div><div><ShieldCheck size={16}/><span>Class teacher approvals</span><strong>Class/section scoped</strong></div><div><ShieldCheck size={16}/><span>Student data</span><strong>Teaching-scope read</strong></div></div></div></section></>;
+function AdminDashboard({
+  first,
+  pending,
+  studentCount,
+}: {
+  first: string;
+  pending: number;
+  studentCount: number;
+}) {
+  return (
+    <>
+      <section className="welcome">
+        <div>
+          <span className="section-kicker">
+            SCHOOL ADMINISTRATION
+          </span>
+
+          <h1>
+            Good afternoon, {first}{' '}
+            <span>👋</span>
+          </h1>
+
+          <p>
+            Here’s what is happening
+            across Champion English
+            School today.
+          </p>
+        </div>
+
+        <div className="security-chip">
+          <ShieldCheck size={16} />
+          Secure admin workspace
+        </div>
+      </section>
+
+      <section className="stat-grid">
+        {(
+          [
+            [
+              'Active students',
+              String(studentCount),
+              'Live from Supabase',
+              GraduationCap,
+              'blue',
+            ],
+            [
+              'Pending approvals',
+              String(pending),
+              'Needs review',
+              UserRoundCheck,
+              'rose',
+            ],
+            [
+              'Teachers',
+              '—',
+              'Open teacher directory',
+              Users,
+              'violet',
+            ],
+            [
+              'Classes & sections',
+              '—',
+              'Manage academic structure',
+              BookOpen,
+              'amber',
+            ],
+          ] as [
+            string,
+            string,
+            string,
+            typeof GraduationCap,
+            string
+          ][]
+        ).map(
+          ([
+            label,
+            value,
+            delta,
+            Icon,
+            tone,
+          ]) => (
+            <div
+              className="stat-card"
+              key={label}
+            >
+              <div
+                className={
+                  'stat-icon ' +
+                  tone
+                }
+              >
+                <Icon size={20} />
+              </div>
+
+              <div className="stat-copy">
+                <span>{label}</span>
+
+                <strong>
+                  {value}
+                </strong>
+
+                <small>
+                  {delta}
+                </small>
+              </div>
+
+              <ArrowUpRight
+                className="stat-arrow"
+                size={17}
+              />
+            </div>
+          )
+        )}
+      </section>
+
+      <section className="dashboard-grid">
+        <div className="panel">
+          <div className="panel-head">
+            <div>
+              <h3>
+                Student management
+              </h3>
+
+              <p>
+                Register, assign and
+                maintain student records.
+              </p>
+            </div>
+
+            <Link
+              className="ghost-btn"
+              href="/students"
+            >
+              Open directory
+              <ArrowUpRight size={15} />
+            </Link>
+          </div>
+
+          <div className="quick-grid">
+            <Link href="/students">
+              <GraduationCap size={18} />
+
+              <strong>
+                Students
+              </strong>
+
+              <span>
+                Registration & enrollment
+              </span>
+            </Link>
+
+            <Link href="/classes">
+              <BookOpen size={18} />
+
+              <strong>
+                Classes
+              </strong>
+
+              <span>
+                Sections & subjects
+              </span>
+            </Link>
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-head">
+            <div>
+              <h3>
+                Security model
+              </h3>
+
+              <p>
+                Authorization is enforced
+                in PostgreSQL.
+              </p>
+            </div>
+
+            <ShieldCheck size={18} />
+          </div>
+
+          <div className="security-list">
+            <div>
+              <ShieldCheck size={16} />
+
+              <span>
+                Admin actions
+              </span>
+
+              <strong>
+                RLS + role check
+              </strong>
+            </div>
+
+            <div>
+              <ShieldCheck size={16} />
+
+              <span>
+                Class teacher approvals
+              </span>
+
+              <strong>
+                Class/section scoped
+              </strong>
+            </div>
+
+            <div>
+              <ShieldCheck size={16} />
+
+              <span>
+                Student data
+              </span>
+
+              <strong>
+                Teaching-scope read
+              </strong>
+            </div>
+          </div>
+        </div>
+      </section>
+    </>
+  );
 }
 
-function TeacherDashboard({first,assignments,pending}:{first:string;assignments:any[];pending:number}){
- return <><section className="welcome"><div><span className="section-kicker">TEACHER PORTAL</span><h1>Welcome, {first} <span>👋</span></h1><p>Your workspace is limited to classes and sections assigned to you.</p></div><div className="security-chip"><ShieldCheck size={16}/> Teaching scope enforced</div></section>
- <section className="stat-grid"><div className="stat-card"><div className="stat-icon blue"><BookOpen size={20}/></div><div className="stat-copy"><span>My assignments</span><strong>{assignments.length}</strong><small>Classes / subjects</small></div></div><div className="stat-card"><div className="stat-icon rose"><UserRoundCheck size={20}/></div><div className="stat-copy"><span>Pending approvals</span><strong>{pending}</strong><small>Only requests visible by RLS</small></div></div></section>
- <section className="panel"><div className="panel-head"><div><h3>My classes & subjects</h3><p>Only your assigned teaching scope is shown.</p></div></div><div className="assignment-list">{assignments.map(a=><div className="assignment-row" key={a.id}><div className="avatar student"><BookOpen size={15}/></div><div className="person"><strong>{a.classes?`Class ${a.classes.grade} · ${a.sections?.name||'Whole class'}`:'Assigned class'}</strong><span>{a.subjects?.name||'Class teacher'}{a.is_class_teacher?' · Class teacher':''}</span></div></div>)}{!assignments.length&&<div className="empty-mini">No teaching assignments have been configured yet.</div>}</div></section></>;
+function TeacherDashboard({
+  first,
+  assignments,
+  pending,
+}: {
+  first: string;
+  assignments: any[];
+  pending: number;
+}) {
+  return (
+    <>
+      <section className="welcome">
+        <div>
+          <span className="section-kicker">
+            TEACHER PORTAL
+          </span>
+
+          <h1>
+            Welcome, {first}{' '}
+            <span>👋</span>
+          </h1>
+
+          <p>
+            Your workspace is limited
+            to classes and sections
+            assigned to you.
+          </p>
+        </div>
+
+        <div className="security-chip">
+          <ShieldCheck size={16} />
+          Teaching scope enforced
+        </div>
+      </section>
+
+      <section className="stat-grid">
+        <div className="stat-card">
+          <div className="stat-icon blue">
+            <BookOpen size={20} />
+          </div>
+
+          <div className="stat-copy">
+            <span>
+              My assignments
+            </span>
+
+            <strong>
+              {assignments.length}
+            </strong>
+
+            <small>
+              Classes / subjects
+            </small>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon rose">
+            <UserRoundCheck
+              size={20}
+            />
+          </div>
+
+          <div className="stat-copy">
+            <span>
+              Pending approvals
+            </span>
+
+            <strong>
+              {pending}
+            </strong>
+
+            <small>
+              Only requests visible by
+              RLS
+            </small>
+          </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <h3>
+              My classes & subjects
+            </h3>
+
+            <p>
+              Only your assigned teaching
+              scope is shown.
+            </p>
+          </div>
+        </div>
+
+        <div className="assignment-list">
+          {assignments.map((a) => (
+            <div
+              className="assignment-row"
+              key={a.id}
+            >
+              <div className="avatar student">
+                <BookOpen size={15} />
+              </div>
+
+              <div className="person">
+                <strong>
+                  {a.classes
+                    ? `Class ${a.classes.grade} · ${
+                        a.sections?.name ||
+                        'Whole class'
+                      }`
+                    : 'Assigned class'}
+                </strong>
+
+                <span>
+                  {a.subjects?.name ||
+                    'Class teacher'}
+
+                  {a.is_class_teacher
+                    ? ' · Class teacher'
+                    : ''}
+                </span>
+              </div>
+            </div>
+          ))}
+
+          {!assignments.length && (
+            <div className="empty-mini">
+              No teaching assignments
+              have been configured yet.
+            </div>
+          )}
+        </div>
+      </section>
+    </>
+  );
 }
 
-function StudentDashboard({first,enrollment}:{first:string;enrollment:any}){
- const c=enrollment?.classes,sec=enrollment?.sections,year=enrollment?.academic_years;
- return <><section className="welcome"><div><span className="section-kicker">STUDENT PORTAL</span><h1>Hello, {first} <span>👋</span></h1><p>Your school information, attendance, assignments and results will appear here.</p></div><div className="security-chip"><ShieldCheck size={16}/> Account secured</div></section>
- <section className="stat-grid"><div className="stat-card"><div className="stat-icon blue"><GraduationCap size={20}/></div><div className="stat-copy"><span>Current class</span><strong>{c?`Class ${c.grade}`:'—'}</strong><small>{sec?.name?`Section ${sec.name}`:'Not assigned'}</small></div></div><div className="stat-card"><div className="stat-icon violet"><BookOpen size={20}/></div><div className="stat-copy"><span>Academic year</span><strong>{year?.name||'—'}</strong><small>{enrollment?.admission_no?`Admission ${enrollment.admission_no}`:'Enrollment pending'}</small></div></div></section>
- <section className="quick-grid big"><Link href="/attendance"><CalendarCheck2 size={20}/><strong>Attendance</strong><span>View your attendance record</span></Link><Link href="/assignments"><ClipboardList size={20}/><strong>Assignments</strong><span>See work given by teachers</span></Link><Link href="/discussions"><MessageSquareText size={20}/><strong>Discussions</strong><span>Talk with your class</span></Link><Link href="/results"><GraduationCap size={20}/><strong>Results</strong><span>View published exam results</span></Link></section></>;
+function StudentDashboard({
+  first,
+  enrollment,
+}: {
+  first: string;
+  enrollment: any;
+}) {
+  const c =
+    enrollment?.classes;
+
+  const sec =
+    enrollment?.sections;
+
+  const year =
+    enrollment?.academic_years;
+
+  return (
+    <>
+      <section className="welcome">
+        <div>
+          <span className="section-kicker">
+            STUDENT PORTAL
+          </span>
+
+          <h1>
+            Hello, {first}{' '}
+            <span>👋</span>
+          </h1>
+
+          <p>
+            Your school information,
+            attendance, assignments and
+            results will appear here.
+          </p>
+        </div>
+
+        <div className="security-chip">
+          <ShieldCheck size={16} />
+          Account secured
+        </div>
+      </section>
+
+      <section className="stat-grid">
+        <div className="stat-card">
+          <div className="stat-icon blue">
+            <GraduationCap size={20} />
+          </div>
+
+          <div className="stat-copy">
+            <span>
+              Current class
+            </span>
+
+            <strong>
+              {c
+                ? `Class ${c.grade}`
+                : '—'}
+            </strong>
+
+            <small>
+              {sec?.name
+                ? `Section ${sec.name}`
+                : 'Not assigned'}
+            </small>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon violet">
+            <BookOpen size={20} />
+          </div>
+
+          <div className="stat-copy">
+            <span>
+              Academic year
+            </span>
+
+            <strong>
+              {year?.name || '—'}
+            </strong>
+
+            <small>
+              {enrollment?.admission_no
+                ? `Admission ${enrollment.admission_no}`
+                : 'Enrollment pending'}
+            </small>
+          </div>
+        </div>
+      </section>
+
+      <section className="quick-grid big">
+        <Link href="/attendance">
+          <CalendarCheck2 size={20} />
+
+          <strong>
+            Attendance
+          </strong>
+
+          <span>
+            View your attendance record
+          </span>
+        </Link>
+
+        <Link href="/assignments">
+          <ClipboardList size={20} />
+
+          <strong>
+            Assignments
+          </strong>
+
+          <span>
+            See work given by teachers
+          </span>
+        </Link>
+
+        <Link href="/discussions">
+          <MessageSquareText size={20} />
+
+          <strong>
+            Discussions
+          </strong>
+
+          <span>
+            Talk with your class
+          </span>
+        </Link>
+
+        <Link href="/results">
+          <GraduationCap size={20} />
+
+          <strong>
+            Results
+          </strong>
+
+          <span>
+            View published exam results
+          </span>
+        </Link>
+      </section>
+    </>
+  );
 }
