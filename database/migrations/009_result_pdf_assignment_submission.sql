@@ -196,7 +196,7 @@ add column if not exists fcm_message_id text,
 add column if not exists delivered_at timestamptz,
 add column if not exists read_at timestamptz;
 
-create index idx_notifications_unread on public.notifications(user_id, is_read, created_at desc);
+create index idx_notifications_unread on public.notifications(recipient_id, read_at, created_at desc);
 
 -- ============================================================================
 -- 5. BACKUP & MAINTENANCE UTILITIES

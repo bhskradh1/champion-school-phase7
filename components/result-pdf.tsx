@@ -62,15 +62,6 @@ export default function ResultPDF({
         }, 500);
       }
 
-      // Record the download
-      await fetch('/api/results/pdf/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ result_id: resultId })
-      }).catch(() => {
-        // Silently fail - this is just for tracking
-      });
-
     } catch (err) {
       console.error('Error generating PDF:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate PDF');

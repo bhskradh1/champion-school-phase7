@@ -229,7 +229,7 @@ export async function notifyClassStudents(
       return { success: false, count: 0, error: enrollmentError.message };
     }
 
-    const studentIds = enrollments?.map(e => e.student_id) || [];
+    const studentIds = enrollments?.map((e: { student_id: string }) => e.student_id) || [];
     
     if (studentIds.length === 0) {
       return { success: true, count: 0 };
