@@ -47,3 +47,75 @@
 
 /* Phase 7 — announcements and notification centre */
 .announcements-space{display:grid;gap:20px}.announcement-compose{padding:22px}.announcement-compose h2,.notification-head h2{font:800 19px 'Plus Jakarta Sans';margin:6px 0}.announcement-compose p,.notification-head p{margin:0;color:#7a879a;font-size:11px}.announcement-form{display:grid;grid-template-columns:1.5fr .8fr .9fr;gap:11px;margin:16px 0}.announcement-form label{display:grid;gap:6px;color:#59667b;font-size:9px;font-weight:800}.announcement-form input,.announcement-form select,.announcement-form textarea{width:100%;border:1px solid #e0e6ef;border-radius:9px;background:#fbfcfe;padding:10px;font:inherit;font-size:11px;outline:0}.announcement-form textarea{resize:vertical;min-height:120px;line-height:1.6}.announcement-form input:focus,.announcement-form select:focus,.announcement-form textarea:focus{border-color:#7469db;box-shadow:0 0 0 3px rgba(116,105,219,.11)}.announcement-message{grid-column:1/-1}.announcement-feed{display:grid;gap:12px}.announcement-card{display:flex;gap:13px;padding:18px 20px;align-items:flex-start}.announcement-icon{width:39px;height:39px;flex:0 0 39px;display:grid;place-items:center;border-radius:12px;background:#f0eeff;color:#6359c2}.announcement-content{flex:1;min-width:0}.announcement-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:7px}.announcement-meta time,.announcement-content small{font-size:9px;color:#8b95a7}.audience-chip{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 8px;background:#f1efff;color:#5d52b7;font-size:9px;font-weight:850}.announcement-content h3{font:800 15px 'Plus Jakarta Sans';margin:0 0 7px;color:#2a3142}.announcement-content p{margin:0 0 10px;white-space:pre-wrap;color:#5b677a;font-size:12px;line-height:1.65}.notification-centre{overflow:hidden}.notification-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:21px 22px;border-bottom:1px solid #edf0f5}.notification-list{padding:5px 22px 14px}.notification-row{width:100%;display:grid;grid-template-columns:31px 1fr;gap:10px;text-align:left;border:0;border-bottom:1px solid #edf0f5;background:#fff;padding:15px 0;cursor:pointer}.notification-row:last-child{border-bottom:0}.notification-row:disabled{cursor:default}.notification-row.unread{background:linear-gradient(90deg,#f8f8ff,transparent)}.notification-dot{width:27px;height:27px;display:grid;place-items:center;border-radius:9px;background:#f0eeff;color:#665bc1;margin-top:2px}.notification-row.read .notification-dot{background:#f1f4f7;color:#8792a3}.notification-row>span:last-child{display:grid;gap:5px;min-width:0}.notification-row strong{font-size:12px;color:#30384a}.notification-row small{font-size:11px;color:#687589;line-height:1.5;white-space:pre-wrap}.notification-row time{font-size:9px;color:#9aa3b2}.notification-centre .notice{margin:12px 22px 0}@media(max-width:700px){.announcement-form{grid-template-columns:1fr}.announcement-message{grid-column:auto}.announcement-card{padding:16px}.notification-head{align-items:flex-start;flex-direction:column}.notification-list{padding:5px 16px 12px}.notification-head{padding:18px 16px}}
+.skeleton-line,
+.skeleton-block {
+  background: linear-gradient(
+    90deg,
+    #eef1f5 25%,
+    #f7f8fa 50%,
+    #eef1f5 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.4s infinite;
+}
+
+.skeleton-line {
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.skeleton-line.small {
+  width: 90px;
+  height: 14px;
+}
+
+.skeleton-line.title {
+  width: 180px;
+  height: 30px;
+}
+
+.skeleton-line.text {
+  width: 360px;
+  height: 14px;
+}
+
+.skeleton-table {
+  padding: 10px 0;
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 16px;
+  border-bottom: 1px solid #edf0f5;
+}
+
+.skeleton-block {
+  height: 18px;
+  border-radius: 5px;
+}
+
+.avatar-block {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+}
+
+.wide-block {
+  width: 230px;
+}
+
+.medium-block {
+  width: 130px;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
