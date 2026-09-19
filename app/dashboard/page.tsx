@@ -1,4 +1,5 @@
 import Link from 'next/link';
+
 import {
   ArrowUpRight,
   Bell,
@@ -41,7 +42,9 @@ export default async function Dashboard() {
       ] = await Promise.all([
         supabase
           .from('profiles')
-          .select('full_name, role')
+          .select(
+            'full_name, role'
+          )
           .eq('id', user.id)
           .single(),
 
@@ -54,14 +57,17 @@ export default async function Dashboard() {
           .is('read_at', null),
       ]);
 
-      const profile = profileResult.data;
+      const profile =
+        profileResult.data;
 
       displayName =
         profile?.full_name ||
         user.email?.split('@')[0] ||
         displayName;
 
-      role = profile?.role || role;
+      role =
+        profile?.role ||
+        role;
 
       unreadNotifications =
         unreadResult.count || 0;
@@ -69,7 +75,9 @@ export default async function Dashboard() {
       if (role === 'student') {
         const { data: e } =
           await supabase
-            .from('student_enrollments')
+            .from(
+              'student_enrollments'
+            )
             .select(
               'admission_no,roll_no,classes(name,grade),sections(name),academic_years(name)'
             )
@@ -77,7 +85,10 @@ export default async function Dashboard() {
               'student_id',
               user.id
             )
-            .eq('is_active', true)
+            .eq(
+              'is_active',
+              true
+            )
             .order(
               'created_at',
               {
@@ -96,7 +107,9 @@ export default async function Dashboard() {
           pendingResult,
         ] = await Promise.all([
           supabase
-            .from('teacher_assignments')
+            .from(
+              'teacher_assignments'
+            )
             .select(
               'id,class_id,section_id,subject_id,is_class_teacher,classes(name,grade),sections(name),subjects(name)'
             )
@@ -120,10 +133,12 @@ export default async function Dashboard() {
         ]);
 
         assignments =
-          assignmentsResult.data || [];
+          assignmentsResult.data ||
+          [];
 
         pending =
-          pendingResult.count || 0;
+          pendingResult.count ||
+          0;
       }
 
       if (role === 'admin') {
@@ -161,10 +176,12 @@ export default async function Dashboard() {
         ]);
 
         studentCount =
-          studentCountResult.count || 0;
+          studentCountResult.count ||
+          0;
 
         pending =
-          pendingResult.count || 0;
+          pendingResult.count ||
+          0;
       }
     }
   }
@@ -172,11 +189,14 @@ export default async function Dashboard() {
   const first =
     displayName.split(' ')[0];
 
-  const initials = displayName
-    .split(' ')
-    .map((x) => x[0])
-    .slice(0, 2)
-    .join('');
+  const initials =
+    displayName
+      .split(' ')
+      .map(
+        (x) => x[0]
+      )
+      .slice(0, 2)
+      .join('');
 
   return (
     <div className="app-shell">
@@ -287,11 +307,14 @@ function AdminDashboard({
           [
             [
               'Active students',
-              String(studentCount),
+              String(
+                studentCount
+              ),
               'Live from Supabase',
               GraduationCap,
               'blue',
             ],
+
             [
               'Pending approvals',
               String(pending),
@@ -299,6 +322,7 @@ function AdminDashboard({
               UserRoundCheck,
               'rose',
             ],
+
             [
               'Teachers',
               '—',
@@ -306,6 +330,7 @@ function AdminDashboard({
               Users,
               'violet',
             ],
+
             [
               'Classes & sections',
               '—',
@@ -329,8 +354,10 @@ function AdminDashboard({
             tone,
           ]) => (
             <div
-              className="stat-card"
-              key={label}
+              className={
+                'stat-card'
+              }
+              key={String(label)}
             >
               <div
                 className={
@@ -342,7 +369,9 @@ function AdminDashboard({
               </div>
 
               <div className="stat-copy">
-                <span>{label}</span>
+                <span>
+                  {label}
+                </span>
 
                 <strong>
                   {value}
@@ -420,8 +449,8 @@ function AdminDashboard({
               </h3>
 
               <p>
-                Authorization is enforced
-                in PostgreSQL.
+                Authorization is
+                enforced in PostgreSQL.
               </p>
             </div>
 
@@ -559,8 +588,8 @@ function TeacherDashboard({
             </h3>
 
             <p>
-              Only your assigned teaching
-              scope is shown.
+              Only your assigned
+              teaching scope is shown.
             </p>
           </div>
         </div>
