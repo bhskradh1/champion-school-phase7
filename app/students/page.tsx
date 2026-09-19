@@ -238,7 +238,7 @@ function Shell({
           </div>
 
           <StudentManagement
-            students={rows}
+            students={students}
             classes={classes}
             sections={sections}
             years={years}
