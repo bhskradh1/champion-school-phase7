@@ -13,6 +13,7 @@ import {
   Menu,
   ScrollText,
   Settings,
+  TrendingUp,
   ShieldCheck,
   Users,
   X,
@@ -271,6 +272,17 @@ export default function Sidebar({
             >
               <BarChart3 size={18} />
               Reports
+            </Link>
+          )}
+
+          {admin && (
+            <Link
+              className="nav-item"
+              href="/promotion"
+              onClick={closeSidebar}
+            >
+              <TrendingUp size={18} />
+              Promotion
             </Link>
           )}
 
