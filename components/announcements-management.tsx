@@ -9,7 +9,7 @@ export default function AnnouncementsManagement({role,announcements:initial}:{ro
  async function publish(){
   if(!supabase){setNotice('Preview mode: connect Supabase to publish announcements.');return}
   const title=form.title.trim(),body=form.body.trim(); if(title.length<2||body.length<2){setNotice('Add a title and message before publishing.');return}
-  setBusy(true);setNotice(''); const {data:{user}}=await supabase.auth.getUser();
+  setBusy(true);setNotice(''); const {data:{session}}=await supabase.auth.getSession(); const user=session?.user;
   const {data,error}=await supabase.from('announcements').insert({title,body,target_audience:form.target_audience,is_published:true,published_at:new Date().toISOString(),expires_at:form.expires_at||null,created_by:user?.id}).select('id,title,body,target_audience,is_published,published_at,expires_at,created_at,created_by').single();
   if(error)setNotice(error.message);else {setAnnouncements(xs=>[data,...xs]);setForm({title:'',body:'',target_audience:'all',expires_at:''});setNotice('Announcement published and delivered to eligible recipients.')} setBusy(false);
  }
