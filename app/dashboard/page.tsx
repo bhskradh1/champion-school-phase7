@@ -36,6 +36,7 @@ export default async function Dashboard() {
   let role = 'admin';
 
   let enrollment: any = null;
+  let approval: any = null;
   let assignments: any[] = [];
   let pending = 0;
   let marksPending = 0;
@@ -67,7 +68,7 @@ export default async function Dashboard() {
         .eq('status', 'pending');
 
     if (role === 'student') {
-      const [unreadResult, enrollmentResult] = await Promise.all([
+      const [unreadResult, enrollmentResult, approvalResult] = await Promise.all([
         unreadQuery,
         supabase
           .from('student_enrollments')
@@ -79,10 +80,19 @@ export default async function Dashboard() {
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
+        // Registration status (only matters until the student is approved)
+        supabase
+          .from('student_approval_requests')
+          .select('status,reason')
+          .eq('student_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
       ]);
 
       unreadNotifications = unreadResult.count || 0;
       enrollment = enrollmentResult.data;
+      approval = approvalResult.data;
     } else if (role === 'teacher') {
       const [unreadResult, assignmentsResult, pendingResult, marksResult] =
         await Promise.all([
@@ -231,6 +241,7 @@ export default async function Dashboard() {
               enrollment={
                 enrollment
               }
+              approval={approval}
             />
           )}
         </div>
@@ -703,9 +714,11 @@ function TeacherDashboard({
 function StudentDashboard({
   first,
   enrollment,
+  approval,
 }: {
   first: string;
   enrollment: any;
+  approval: any;
 }) {
   const c =
     enrollment?.classes;
@@ -741,6 +754,19 @@ function StudentDashboard({
           Account secured
         </div>
       </section>
+
+      {!enrollment && approval && (
+        <div
+          className={approval.status === 'rejected' ? 'form-error' : 'notice'}
+          style={{ marginBottom: 16 }}
+        >
+          {approval.status === 'rejected'
+            ? `Your registration was not approved. Reason: ${approval.reason || 'not given'}. Please contact the school office.`
+            : approval.status === 'teacher_approved'
+            ? "Your class teacher approved your registration. It is now waiting for the admin's final approval."
+            : 'Your registration is waiting for approval by your class teacher. You will get a notification when it is approved.'}
+        </div>
+      )}
 
       <section className="stat-grid">
         <div className="stat-card">
