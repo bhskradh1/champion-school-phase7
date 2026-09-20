@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { getSiteUrl } from '@/lib/site-url';
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -30,7 +31,9 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
   const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
-    data: { full_name: fullName, role }
+    data: { full_name: fullName, role },
+    // The link in the email opens the "Create your account" page of THIS website.
+    redirectTo: `${getSiteUrl(request)}/signup`
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
