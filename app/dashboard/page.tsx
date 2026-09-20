@@ -39,6 +39,7 @@ export default async function Dashboard() {
   let assignments: any[] = [];
   let pending = 0;
   let marksPending = 0;
+  let overview: Overview = { teachers: 0, classes: 0, present: 0, absent: 0, late: 0, submitted: 0, corrections: 0, published: 0 };
   let studentCount = 0;
   let unreadNotifications = 0;
 
@@ -106,20 +107,57 @@ export default async function Dashboard() {
       pending = pendingResult.count || 0;
       marksPending = marksResult.count || 0;
     } else if (role === 'admin') {
-      const [unreadResult, studentCountResult, pendingResult] =
-        await Promise.all([
-          unreadQuery,
-          supabase
-            .from('profiles')
-            .select('id', { count: 'exact', head: true })
-            .eq('role', 'student')
-            .eq('is_active', true),
-          pendingQuery(),
-        ]);
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kathmandu' });
+      const count = (table: string) => supabase.from(table).select('id', { count: 'exact', head: true });
+      const attendanceOn = (status: string) =>
+        supabase
+          .from('attendance_records')
+          .select('id', { count: 'exact', head: true })
+          .eq('attendance_date', today)
+          .eq('status', status);
+
+      // Every number on the admin dashboard is fetched at the same time.
+      const [
+        unreadResult, studentCountResult, pendingResult,
+        teachersResult, classesResult,
+        presentResult, absentResult, lateResult,
+        submittedResult, correctionsResult, publishedResult,
+      ] = await Promise.all([
+        unreadQuery,
+        supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('role', 'student')
+          .eq('is_active', true),
+        pendingQuery(),
+        supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('role', 'teacher')
+          .eq('is_active', true),
+        count('classes'),
+        attendanceOn('present'),
+        attendanceOn('absent'),
+        attendanceOn('late'),
+        supabase.from('exam_mark_sheets').select('id', { count: 'exact', head: true }).eq('status', 'submitted'),
+        supabase.from('exam_mark_sheets').select('id', { count: 'exact', head: true }).eq('status', 'changes_requested'),
+        supabase.from('exam_results').select('id', { count: 'exact', head: true }).eq('is_published', true),
+      ]);
 
       unreadNotifications = unreadResult.count || 0;
       studentCount = studentCountResult.count || 0;
       pending = pendingResult.count || 0;
+      overview = {
+        teachers: teachersResult.count || 0,
+        classes: classesResult.count || 0,
+        present: presentResult.count || 0,
+        absent: absentResult.count || 0,
+        late: lateResult.count || 0,
+        submitted: submittedResult.count || 0,
+        corrections: correctionsResult.count || 0,
+        published: publishedResult.count || 0,
+      };
+
     } else {
       unreadNotifications = (await unreadQuery).count || 0;
     }
@@ -173,6 +211,7 @@ export default async function Dashboard() {
             <AdminDashboard
               first={first}
               pending={pending}
+              overview={overview}
               studentCount={
                 studentCount
               }
@@ -200,14 +239,44 @@ export default async function Dashboard() {
   );
 }
 
+type Overview = {
+  teachers: number;
+  classes: number;
+  present: number;
+  absent: number;
+  late: number;
+  submitted: number;
+  corrections: number;
+  published: number;
+};
+
+function Bars({ rows }: { rows: [string, number, string][] }) {
+  const max = Math.max(1, ...rows.map((r) => r[1]));
+  return (
+    <div className="bars">
+      {rows.map(([label, value, color]) => (
+        <div className="bar-row" key={label}>
+          <span>{label}</span>
+          <div className="bar-track">
+            <div className="bar-fill" style={{ width: `${(value / max) * 100}%`, background: color }} />
+          </div>
+          <strong>{value}</strong>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function AdminDashboard({
   first,
   pending,
   studentCount,
+  overview,
 }: {
   first: string;
   pending: number;
   studentCount: number;
+  overview: Overview;
 }) {
   return (
     <>
@@ -258,15 +327,15 @@ function AdminDashboard({
 
             [
               'Teachers',
-              '—',
-              'Open teacher directory',
+              String(overview.teachers),
+              'Active teachers',
               Users,
               'violet',
             ],
 
             [
-              'Classes & sections',
-              '—',
+              'Classes',
+              String(overview.classes),
               'Manage academic structure',
               BookOpen,
               'amber',
@@ -322,6 +391,42 @@ function AdminDashboard({
             </div>
           )
         )}
+      </section>
+
+      <section className="dashboard-grid">
+        <div className="panel">
+          <div className="panel-head">
+            <div>
+              <h3>Today&apos;s attendance</h3>
+              <p>Students marked so far today.</p>
+            </div>
+            <Link className="ghost-btn" href="/reports">Reports <ArrowUpRight size={15} /></Link>
+          </div>
+          <Bars
+            rows={[
+              ['Present', overview.present, '#2ea86b'],
+              ['Absent', overview.absent, '#e0566f'],
+              ['Late', overview.late, '#e6a23c'],
+            ]}
+          />
+        </div>
+
+        <div className="panel">
+          <div className="panel-head">
+            <div>
+              <h3>Examinations</h3>
+              <p>Marks waiting for you.</p>
+            </div>
+            <Link className="ghost-btn" href="/examinations">Open <ArrowUpRight size={15} /></Link>
+          </div>
+          <Bars
+            rows={[
+              ['Waiting to verify', overview.submitted, '#e6a23c'],
+              ['Correction requested', overview.corrections, '#e0566f'],
+              ['Published results', overview.published, '#2ea86b'],
+            ]}
+          />
+        </div>
       </section>
 
       <section className="dashboard-grid">
