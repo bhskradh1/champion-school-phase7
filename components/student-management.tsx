@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useDeferredValue, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { CheckCircle2, Edit3, Mail, Phone, Plus, RefreshCw, Search, ShieldCheck, UserRound, X } from 'lucide-react';
 import ApprovalActions from '@/components/approval-actions';
 
@@ -15,6 +16,10 @@ type Request = {
   student?: { full_name: string; email: string | null };
 };
 
+// Only this many rows are drawn at first; "Show more" adds the next batch.
+// (Drawing 500+ table rows at once is what made this page feel heavy.)
+const PAGE_SIZE = 50;
+
 export default function StudentManagement({
   students, classes, sections, years, requests, canManage
 }: {
@@ -23,18 +28,30 @@ export default function StudentManagement({
   const [query, setQuery] = useState('');
   const [editing, setEditing] = useState<Student | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  const filtered = useMemo(() => students.filter(s => {
-    const e = s.enrollment;
-    const c = classes.find(x => x.id === e?.class_id);
-    const sec = sections.find(x => x.id === e?.section_id);
-    const hay = [s.full_name, s.email, s.phone, e?.admission_no, String(e?.roll_no ?? ''), c?.name, sec?.name].join(' ').toLowerCase();
-    return hay.includes(query.toLowerCase());
-  }), [students, query, classes, sections]);
+  // Typing stays responsive: the list re-filters after the keystroke is painted.
+  const deferredQuery = useDeferredValue(query);
+
+  // Built once, instead of searching the class/section arrays for every student on every keystroke.
+  const classById = useMemo(() => new Map(classes.map(c => [c.id, c] as const)), [classes]);
+  const sectionById = useMemo(() => new Map(sections.map(s => [s.id, s] as const)), [sections]);
+
+  const filtered = useMemo(() => {
+    const needle = deferredQuery.toLowerCase();
+    if (!needle) return students;
+    return students.filter(s => {
+      const e = s.enrollment;
+      const c = e ? classById.get(e.class_id) : undefined;
+      const sec = e ? sectionById.get(e.section_id) : undefined;
+      const hay = [s.full_name, s.email, s.phone, e?.admission_no, String(e?.roll_no ?? ''), c?.name, sec?.name].join(' ').toLowerCase();
+      return hay.includes(needle);
+    });
+  }, [students, deferredQuery, classById, sectionById]);
 
   return <div>
     <div className="student-toolbar">
-      <div className="search wide"><Search size={18}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search name, email, admission no, class…"/></div>
+      <div className="search wide"><Search size={18}/><input value={query} onChange={e => { setQuery(e.target.value); setVisibleCount(PAGE_SIZE); }} placeholder="Search name, email, admission no, class…"/></div>
       {canManage && <button className="primary-btn" onClick={() => setShowAdd(true)}><Plus size={17}/> Register student</button>}
     </div>
 
@@ -51,8 +68,8 @@ export default function StudentManagement({
       <div className="panel-head"><div><h3>Student directory</h3><p>{filtered.length} visible student{filtered.length === 1 ? '' : 's'} · {canManage ? 'Admin management enabled' : 'Teaching-scope access'}</p></div><div className="security-chip"><CheckCircle2 size={15}/> RLS protected</div></div>
       <div className="table-wrap">
         <div className="table-head student-head"><span>STUDENT</span><span>CLASS / SECTION</span><span>ADMISSION</span><span>CONTACT</span><span>STATUS</span><span/></div>
-        {filtered.map(s => {
-          const e=s.enrollment, c=classes.find(x=>x.id===e?.class_id), sec=sections.find(x=>x.id===e?.section_id);
+        {filtered.slice(0, visibleCount).map(s => {
+          const e=s.enrollment, c=e?classById.get(e.class_id):undefined, sec=e?sectionById.get(e.section_id):undefined;
           return <div className="table-row student-row" key={s.id}>
             <div className="person-inline"><div className="avatar student">{s.full_name.split(' ').map(x=>x[0]).slice(0,2).join('')}</div><div><strong>{s.full_name}</strong><span>{s.email || 'No email'}</span></div></div>
             <strong>{c ? `Class ${c.grade ?? ''} · ${sec?.name || '—'}` : 'Not assigned'}</strong>
@@ -63,6 +80,7 @@ export default function StudentManagement({
           </div>
         })}
         {filtered.length===0 && <div className="loading-row">No students match your search.</div>}
+        {filtered.length>visibleCount && <div className="loading-row"><button className="secondary-btn" onClick={() => setVisibleCount(n => n + PAGE_SIZE)}>Show more ({filtered.length - visibleCount} remaining)</button></div>}
       </div>
     </section>
 
@@ -78,6 +96,7 @@ export default function StudentManagement({
 }
 
 function StudentModal({mode,student,classes,sections,years,onClose}:{mode:'add'|'edit';student:Student|null;classes:Option[];sections:Option[];years:Option[];onClose:()=>void}) {
+  const router=useRouter();
   const initialYear = student?.enrollment?.academic_year_id || years.find(y=>y.is_current)?.id || years[0]?.id || '';
   const [yearId,setYearId]=useState(initialYear);
   const [classId,setClassId]=useState(student?.enrollment?.class_id || '');
@@ -102,7 +121,8 @@ function StudentModal({mode,student,classes,sections,years,onClose}:{mode:'add'|
       })});
       const data=await res.json();
       if(!res.ok) throw new Error(data.error||'Could not save student.');
-      window.location.reload();
+      router.refresh();
+      onClose();
     }catch(e:any){setError(e.message)}finally{setBusy(false)}
   }
   return <div className="modal-backdrop" onMouseDown={e=>{if(e.currentTarget===e.target)onClose()}}>
