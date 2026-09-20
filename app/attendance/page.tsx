@@ -6,11 +6,16 @@ import AttendanceManagement, {
   AttendanceStudentView,
 } from '@/components/attendance-management';
 
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth/current-user';
 import { getSchoolReferenceData } from '@/lib/supabase/cache';
 
 export default async function AttendancePage() {
-  const supabase = await createClient();
+  /*
+   * PERFORMANCE: getCurrentUser() verifies the login token locally and loads
+   * the profile in ONE query. Before, this page made a network call to
+   * Supabase Auth (getUser) and THEN a separate profile query.
+   */
+  const { supabase, userId, profile } = await getCurrentUser();
 
   const today = new Date()
     .toISOString()
@@ -35,14 +40,7 @@ export default async function AttendancePage() {
     );
   }
 
-  /*
-   * Authentication must happen first.
-   */
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!userId) {
     return (
       <Shell role="student">
         <div className="empty-panel">
@@ -52,16 +50,7 @@ export default async function AttendancePage() {
     );
   }
 
-  /*
-   * Get the current user's profile.
-   */
-  const { data: me } = await supabase
-    .from('profiles')
-    .select('role,is_active,full_name')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  const role = me?.role || 'student';
+  const role = profile?.role || 'student';
 
   /*
    * Students only need their own attendance.
@@ -83,7 +72,7 @@ export default async function AttendancePage() {
           sections(name)
         `
       )
-      .eq('student_id', user.id)
+      .eq('student_id', userId)
       .order('attendance_date', {
         ascending: false,
       });
@@ -98,37 +87,33 @@ export default async function AttendancePage() {
   }
 
   /*
-   * Start reference data immediately.
-   *
-   * For teachers we also need their assignments.
+   * Reference data and (for teachers) their class-teacher assignments
+   * are independent, so load them at the same time.
    */
-  const referencePromise =
-    getSchoolReferenceData();
+  const [reference, assignmentsResult] = await Promise.all([
+    getSchoolReferenceData(),
 
-  let assignments: any[] = [];
+    role === 'teacher'
+      ? supabase
+          .from('teacher_assignments')
+          .select(
+            `
+              class_id,
+              section_id,
+              is_class_teacher,
+              classes(name,grade),
+              sections(name)
+            `
+          )
+          .eq('teacher_id', userId)
+          .eq('is_class_teacher', true)
+      : Promise.resolve({ data: [] as any[] }),
+  ]);
 
-  if (role === 'teacher') {
-    const { data } = await supabase
-      .from('teacher_assignments')
-      .select(
-        `
-          class_id,
-          section_id,
-          is_class_teacher,
-          classes(name,grade),
-          sections(name)
-        `
-      )
-      .eq('teacher_id', user.id)
-      .eq('is_class_teacher', true);
+  const assignments: any[] =
+    (assignmentsResult.data as any[] | null) || [];
 
-    assignments = data || [];
-  }
-
-  const {
-    classes,
-    sections,
-  } = await referencePromise;
+  const { classes, sections } = reference;
 
   /*
    * Build the sections the current user is allowed to see.
@@ -253,8 +238,9 @@ export default async function AttendancePage() {
       .or(sectionFilters),
 
     /*
-     * Get attendance for all authorized sections
-     * in one request.
+     * Get TODAY's attendance for all authorized sections
+     * in one request. Other dates are loaded on demand by the
+     * component when the teacher picks a different date.
      */
     supabase
       .from('attendance_records')
@@ -268,11 +254,8 @@ export default async function AttendancePage() {
           attendance_date
         `
       )
-      .or(sectionFilters)
-      .order('attendance_date', {
-        ascending: false,
-      })
-      .limit(5000),
+      .eq('attendance_date', today)
+      .or(sectionFilters),
   ]);
 
   /*
