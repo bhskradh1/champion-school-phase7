@@ -16,7 +16,7 @@ export default async function SettingsPage() {
     const { data } = await supabase
       .from('system_settings')
       .select('setting_key,setting_value')
-      .in('setting_key', ['discussion_thread_limit', 'discussion_message_limit', 'class_teacher_can_publish_results']);
+      .in('setting_key', ['discussion_thread_limit', 'discussion_message_limit', 'class_teacher_can_publish_results', 'student_approval_mode']);
     for (const row of data || []) values[row.setting_key] = row.setting_value;
   }
 
@@ -27,6 +27,7 @@ export default async function SettingsPage() {
           threads: Number(values.discussion_thread_limit ?? 1),
           replies: Number(values.discussion_message_limit ?? 20),
           classTeacherPublish: values.class_teacher_can_publish_results !== false,
+          approvalMode: ['class_teacher', 'admin', 'both'].includes(values.student_approval_mode) ? values.student_approval_mode : 'class_teacher',
         }}
       />
     </PageShell>
