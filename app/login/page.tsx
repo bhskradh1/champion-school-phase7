@@ -36,7 +36,7 @@ export default function LoginPage() {
       </form>
       <div className="secure-note"><ShieldCheck size={17}/><span>Role-based access · Database-level security · Audit-ready</span></div>
       {!configured && <div className="setup-note"><strong>Supabase not connected yet.</strong><span>Copy <code>.env.example</code> to <code>.env.local</code> and add your Supabase project values to activate real authentication.</span></div>}
-      <p className="login-foot">Champion English School · Dharan-15, Sunsari, Nepal</p>
+      <p className="login-foot">New student? <a href="/register">Register here</a> · Teachers: use the link in your invitation email.<br/>Champion English School · Dharan-15, Sunsari, Nepal</p>
     </section>
   </main>;
 }
