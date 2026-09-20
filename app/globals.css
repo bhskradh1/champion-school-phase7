@@ -282,3 +282,4 @@ a.login-btn{text-decoration:none;display:flex;align-items:center;justify-content
 .audit-row time{font-size:12px;color:#69758b;white-space:nowrap}
 .audit-details{word-break:break-word}
 @media(max-width:760px){.audit-row{grid-template-columns:1fr}}
+.marks-view{padding:8px 4px 4px;display:grid;gap:8px}
