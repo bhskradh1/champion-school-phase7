@@ -326,3 +326,62 @@ export function SheetHistory({ sheetId, marks }: { sheetId: string; marks: any[]
     </>
   );
 }
+
+
+/* ---------- Read-only view of the marks on a sheet (for teacher AND admin) ---------- */
+export function SheetMarksView({ marks }: { marks: any[] }) {
+  const [open, setOpen] = useState(false);
+
+  const stats = useMemo(() => {
+    const entered = marks.filter((m) => m.marks !== null && m.marks !== undefined && m.marks !== '');
+    const values = entered.map((m) => Number(m.marks));
+    const total = values.reduce((a, v) => a + v, 0);
+    const maxTotal = entered.reduce((a, m) => a + Number(m.max_marks), 0);
+    return {
+      entered: entered.length,
+      total,
+      maxTotal,
+      average: maxTotal ? Math.round((total / maxTotal) * 1000) / 10 : 0,
+      highest: values.length ? Math.max(...values) : null,
+      lowest: values.length ? Math.min(...values) : null,
+    };
+  }, [marks]);
+
+  const sorted = useMemo(
+    () => [...marks].sort((a, b) => (a.profiles?.full_name || '').localeCompare(b.profiles?.full_name || '')),
+    [marks]
+  );
+
+  return (
+    <div className="marks-view">
+      <div className="row-actions">
+        <button className="secondary-btn" onClick={() => setOpen((o) => !o)}>
+          {open ? 'Hide marks' : `View marks (${stats.entered}/${marks.length} entered)`}
+        </button>
+        {stats.entered > 0 && (
+          <span className="muted">
+            Total {stats.total}/{stats.maxTotal} · Average {stats.average}% · Highest {stats.highest} · Lowest {stats.lowest}
+          </span>
+        )}
+      </div>
+      {open && (
+        <div className="audit-list">
+          {sorted.length === 0 && <div className="loading-row">No students on this sheet.</div>}
+          {sorted.map((m) => {
+            const has = m.marks !== null && m.marks !== undefined && m.marks !== '';
+            return (
+              <div className="audit-row" key={m.id} style={{ gridTemplateColumns: '1.8fr 1fr 1fr' }}>
+                <strong>{m.profiles?.full_name || 'Student'}</strong>
+                <span>{has ? `${m.marks} / ${m.max_marks}` : 'not entered'}</span>
+                <span className="muted">
+                  {has && Number(m.max_marks) ? `${Math.round((Number(m.marks) / Number(m.max_marks)) * 1000) / 10}%` : ''}
+                  {m.remarks ? ` · ${m.remarks}` : ''}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
