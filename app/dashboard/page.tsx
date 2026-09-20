@@ -6,6 +6,7 @@ import {
   CalendarCheck2,
   ChevronDown,
   ClipboardList,
+  FileCheck2,
   GraduationCap,
   MessageSquareText,
   ShieldCheck,
@@ -37,6 +38,7 @@ export default async function Dashboard() {
   let enrollment: any = null;
   let assignments: any[] = [];
   let pending = 0;
+  let marksPending = 0;
   let studentCount = 0;
   let unreadNotifications = 0;
 
@@ -81,7 +83,7 @@ export default async function Dashboard() {
       unreadNotifications = unreadResult.count || 0;
       enrollment = enrollmentResult.data;
     } else if (role === 'teacher') {
-      const [unreadResult, assignmentsResult, pendingResult] =
+      const [unreadResult, assignmentsResult, pendingResult, marksResult] =
         await Promise.all([
           unreadQuery,
           supabase
@@ -91,11 +93,18 @@ export default async function Dashboard() {
             )
             .eq('teacher_id', userId),
           pendingQuery(),
+          // Mark sheets waiting for this teacher (only for exams that are open).
+          supabase
+            .from('exam_mark_sheets')
+            .select('id,examinations!inner(status)', { count: 'exact', head: true })
+            .in('status', ['draft', 'changes_requested'])
+            .eq('examinations.status', 'open'),
         ]);
 
       unreadNotifications = unreadResult.count || 0;
       assignments = assignmentsResult.data || [];
       pending = pendingResult.count || 0;
+      marksPending = marksResult.count || 0;
     } else if (role === 'admin') {
       const [unreadResult, studentCountResult, pendingResult] =
         await Promise.all([
@@ -175,6 +184,7 @@ export default async function Dashboard() {
                 assignments
               }
               pending={pending}
+              marksPending={marksPending}
             />
           ) : (
             <StudentDashboard
@@ -427,10 +437,12 @@ function TeacherDashboard({
   first,
   assignments,
   pending,
+  marksPending,
 }: {
   first: string;
   assignments: any[];
   pending: number;
+  marksPending: number;
 }) {
   return (
     <>
@@ -501,6 +513,28 @@ function TeacherDashboard({
             </small>
           </div>
         </div>
+
+        <Link
+          href="/examinations"
+          className="stat-card"
+          style={{ textDecoration: 'none', color: 'inherit' }}
+        >
+          <div className="stat-icon blue">
+            <FileCheck2 size={20} />
+          </div>
+
+          <div className="stat-copy">
+            <span>Marks to enter</span>
+
+            <strong>{marksPending}</strong>
+
+            <small>
+              {marksPending > 0
+                ? 'Open Examinations to enter marks'
+                : 'No mark sheets waiting'}
+            </small>
+          </div>
+        </Link>
       </section>
 
       <section className="panel">
