@@ -29,7 +29,7 @@ export default async function ExaminationsPage(){
     // PERFORMANCE: mark sheets and results are independent, so fetch them together (was: one after another).
     const [sheetsResult, resultsResult] = await Promise.all([
       supabase.from('exam_mark_sheets').select('id,examination_id,class_id,section_id,subject_id,teacher_id,status,submitted_at,verified_at,review_note,classes(name,grade),sections(name),subjects(name,code),profiles!exam_mark_sheets_teacher_id_fkey(full_name)').eq('examination_id',examId),
-      supabase.from('exam_results').select('id,examination_id,student_id,class_id,section_id,total_marks,total_max_marks,percentage,grade,rank,is_published,profiles!exam_results_student_id_fkey(full_name),classes(name),sections(name)').eq('examination_id',examId).order('rank'),
+      supabase.from('exam_results').select('id,examination_id,student_id,class_id,section_id,total_marks,total_max_marks,percentage,grade,gpa,result_status,failed_subjects,rank,is_published,profiles!exam_results_student_id_fkey(full_name),classes(name),sections(name)').eq('examination_id',examId).order('rank'),
     ]);
     sheets=(sheetsResult.data as any[]|null)||[];
     results=(resultsResult.data as any[]|null)||[];
