@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart3, Lock, MessageCircle, Plus, Send, Trash2, Users, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -23,6 +23,36 @@ const [busy,setBusy]=useState(false); const [notice,setNotice]=useState('');
 
   const selectedScope = scopes.find(s=>s.label===scope) || scopes[0];
   const grouped = useMemo(()=>threads.map(t=>({...t,replies:replies.filter(r=>r.thread_id===t.id)})),[threads,replies]);
+
+  /*
+   * LIVE SYNC: when anyone posts a thread/poll, replies, votes or deletes,
+   * Supabase tells this page and it reloads the feed by itself.
+   * The short delay merges several quick changes into one reload.
+   * (The typed-but-unsent reply text is NOT touched by a reload.)
+   */
+  const refreshRef = useRef<() => Promise<void>>(async () => {});
+  refreshRef.current = refresh;
+
+  useEffect(() => {
+    if (!supabase) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const scheduleRefresh = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { refreshRef.current(); }, 400);
+    };
+    const channel = supabase
+      .channel('discussions-live-' + Math.random().toString(36).slice(2))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'discussion_threads' }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'discussion_replies' }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'discussion_poll_votes' }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'discussion_poll_options' }, scheduleRefresh)
+      .subscribe();
+    return () => {
+      if (timer) clearTimeout(timer);
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function createThread(){
     if(!supabase) return setNotice('Preview mode: connect Supabase to post.');
@@ -47,7 +77,7 @@ const [busy,setBusy]=useState(false); const [notice,setNotice]=useState('');
   }
   async function refresh(){
     if(!supabase) return;
-    const {data:t}=await supabase.from('discussion_threads').select('id,author_id,audience,class_id,section_id,kind,title,body,created_at,is_locked,is_deleted,created_day,profiles!discussion_threads_author_id_fkey(full_name)').eq('is_deleted',false).order('created_at',{ascending:false}).limit(60);
+    const {data:t}=await supabase.from('discussion_threads').select('id,author_id,audience,class_id,section_id,kind,title,body,created_at,is_locked,is_deleted,created_day,profiles!discussion_threads_author_id_fkey(full_name),classes(name),sections(name)').eq('is_deleted',false).order('created_at',{ascending:false}).limit(60);
     if(t) setThreads(t);
     const ids=(t||[]).map(x=>x.id); if(ids.length){const [{data:r},{data:v},{data:o}]=await Promise.all([supabase.from('discussion_replies').select('id,thread_id,author_id,body,created_at,profiles!discussion_replies_author_id_fkey(full_name)').in('thread_id',ids).eq('is_deleted',false).order('created_at'),supabase.from('discussion_poll_votes').select('id,thread_id,option_id,voter_id,created_at').in('thread_id',ids),supabase.from('discussion_poll_options').select('id,thread_id,label,position').in('thread_id',ids).order('position')]); setReplies(r||[]); setVotes(v||[]); setPollOptionsData(o||[])}
   }
@@ -59,7 +89,7 @@ const [busy,setBusy]=useState(false); const [notice,setNotice]=useState('');
   return <div className="discussion-layout">
     {canCreate && <section className="discussion-composer card">
       <div className="section-kicker"><MessageCircle size={16}/> Community</div>
-      <h2>Start a discussion</h2><p className="muted">One top-level post per person per Nepal calendar day. Replies are open without a daily cap.</p>
+      <h2>Start a discussion</h2><p className="muted">{role==='student'?'One top-level post per person per Nepal calendar day. Replies are open without a daily cap.':'You can start as many threads and polls as you need. Students are limited to one per day.'}</p>
       <div className="segmented"><button className={kind==='thread'?'active':''} onClick={()=>setKind('thread')}><MessageCircle size={16}/> Thread</button><button className={kind==='poll'?'active':''} onClick={()=>setKind('poll')}><BarChart3 size={16}/> Poll</button></div>
       <div className="form-grid two">
         <label>Audience<select value={audience} onChange={e=>setAudience(e.target.value as any)}><option value="school">Everyone</option><option value="class">My class / assigned class</option></select></label>
