@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, Edit3, Mail, Phone, Plus, RefreshCw, Search, ShieldCheck, UserRound, X } from 'lucide-react';
+import { CheckCircle2, Edit3, Mail, Phone, Plus, RefreshCw, Search, ShieldCheck, Trash2, UserRound, X } from 'lucide-react';
 import ApprovalActions from '@/components/approval-actions';
 
 type Option = { id: string; name: string; grade?: number; class_id?: string; academic_year_id?: string; is_current?: boolean };
@@ -125,6 +125,18 @@ function StudentModal({mode,student,classes,sections,years,onClose}:{mode:'add'|
       onClose();
     }catch(e:any){setError(e.message)}finally{setBusy(false)}
   }
+  async function remove(){
+    if(!student) return;
+    if(!window.confirm(`Permanently delete ${student.full_name}?\n\nTheir login, attendance, submissions and results will be removed. This cannot be undone.`)) return;
+    setBusy(true);setError('');
+    try{
+      const res=await fetch('/api/admin/users',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:student.id})});
+      const data=await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(data.error||'Could not delete this student.');
+      router.refresh();
+      onClose();
+    }catch(e:any){setError(e.message)}finally{setBusy(false)}
+  }
   return <div className="modal-backdrop" onMouseDown={e=>{if(e.currentTarget===e.target)onClose()}}>
     <div className="modal-card">
       <div className="modal-head"><div><span className="section-kicker">{mode==='add'?'NEW REGISTRATION':'STUDENT PROFILE'}</span><h2>{mode==='add'?'Register student':'Edit student'}</h2><p>{mode==='add'?'An invitation will be emailed to the student.':'Update profile, enrollment and active status.'}</p></div><button className="icon-btn plain" onClick={onClose}><X size={19}/></button></div>
@@ -141,7 +153,7 @@ function StudentModal({mode,student,classes,sections,years,onClose}:{mode:'add'|
       {mode==='edit' && <label className="toggle-row"><input type="checkbox" checked={active} onChange={e=>setActive(e.target.checked)}/><span><strong>Active student</strong><small>Inactive students remain in history but are not treated as current.</small></span></label>}
       {mode==='add' && <div className="form-note"><Mail size={15}/> The student will receive a secure Supabase invitation. Never share the service-role key with the browser.</div>}
       {error&&<div className="form-error">{error}</div>}
-      <div className="modal-actions"><button className="secondary-btn" onClick={onClose} disabled={busy}>Cancel</button><button className="primary-btn" onClick={save} disabled={busy}>{busy?<RefreshCw className="spin" size={15}/>:<UserRound size={15}/>} {busy?'Saving…':mode==='add'?'Create & invite':'Save changes'}</button></div>
+      <div className="modal-actions">{mode==='edit'&&student&&<button className="secondary-btn danger" style={{marginRight:'auto'}} onClick={remove} disabled={busy}><Trash2 size={15}/> Delete student</button>}<button className="secondary-btn" onClick={onClose} disabled={busy}>Cancel</button><button className="primary-btn" onClick={save} disabled={busy}>{busy?<RefreshCw className="spin" size={15}/>:<UserRound size={15}/>} {busy?'Saving…':mode==='add'?'Create & invite':'Save changes'}</button></div>
     </div>
   </div>
 }
