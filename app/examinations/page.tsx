@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import Sidebar from '@/components/sidebar';
 import ExaminationsManagement from '@/components/examinations-management';
@@ -11,6 +12,8 @@ export default async function ExaminationsPage(){
   if(!supabase) return <Shell role="admin"><ExaminationsManagement role="admin" exams={demoExams} sheets={[]} marks={[]} results={[]} classes={demoClasses} sections={demoSections} subjects={demoSubjects} years={demoYears}/></Shell>;
   if(!userId) return <Shell role="student"><div className="empty-panel"><h3>Please sign in</h3></div></Shell>;
   const role=profile?.role||'student';
+  // Marks entry and exam management are for teachers and admins only. Students see their published results on /results.
+  if(role==='student') redirect('/dashboard');
 
   // PERFORMANCE: reference data and the exam list are independent, so fetch them together.
   const [reference, examsResult] = await Promise.all([
