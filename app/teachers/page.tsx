@@ -1,9 +1,25 @@
-'use client';
-import { useEffect,useState } from 'react';
-import { ArrowLeft,Mail,RefreshCw,Search,UserPlus,Users } from 'lucide-react';
-import Link from 'next/link';
-import Sidebar from '@/components/sidebar';
-import TeacherInviteForm from '@/components/admin/teacher-invite-form';
-import { createClient } from '@/lib/supabase/client';
-type Teacher={id:string;full_name:string;email:string|null;phone:string|null;is_active:boolean;created_at:string};
-export default function TeachersPage(){const [teachers,setTeachers]=useState<Teacher[]>([]),[q,setQ]=useState(''),[loading,setLoading]=useState(true);async function load(){const s=createClient();if(!s)return;setLoading(true);const {data}=await s.from('profiles').select('id,full_name,email,phone,is_active,created_at').eq('role','teacher').order('full_name');setTeachers(data||[]);setLoading(false)}useEffect(()=>{load()},[]);const filtered=teachers.filter(t=>(t.full_name+' '+(t.email||'')).toLowerCase().includes(q.toLowerCase()));return <div className="app-shell"><Sidebar/><main className="main"><div className="content"><div className="page-head"><div><Link href="/dashboard" className="back-link"><ArrowLeft size={16}/> Dashboard</Link><h1>Teachers</h1><p>Manage teaching staff, invitations and active status.</p></div><div className="security-chip"><Users size={16}/> {teachers.length} teachers</div></div><section className="panel form-panel"><div className="panel-head"><div><h3>Invite a teacher</h3><p>The teacher receives an email invitation to create their secure account.</p></div><UserPlus size={19}/></div><div className="panel-body"><TeacherInviteForm onDone={load}/></div></section><div className="toolbar"><div className="search wide"><Search size={18}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search teacher name or email..."/></div><button className="secondary-btn" onClick={load}><RefreshCw size={16}/> Refresh</button></div><section className="panel"><div className="table-wrap"><div className="table-head teacher-head"><span>TEACHER</span><span>CONTACT</span><span>STATUS</span><span>JOINED</span></div>{loading?<div className="loading-row">Loading teachers…</div>:filtered.map(t=><div className="table-row teacher-row" key={t.id}><div className="person-inline"><div className="avatar student">{t.full_name.split(' ').map(x=>x[0]).slice(0,2).join('')}</div><div><strong>{t.full_name}</strong><span>Teacher</span></div></div><span className="muted"><Mail size={13}/>{t.email||'—'}</span><span className={'status '+(t.is_active?'approved':'pending')}>{t.is_active?'active':'inactive'}</span><span className="muted">{new Date(t.created_at).toLocaleDateString()}</span></div>)}</div></section></div></main></div>}
+import TeachersManagement from '@/components/teachers-management';
+import { createClient } from '@/lib/supabase/server';
+
+/*
+ * PERFORMANCE: the teacher list is now loaded on the SERVER and arrives with the
+ * page. Before, the page loaded empty, downloaded its JavaScript, and only THEN
+ * asked Supabase for the teachers from the browser (a "waterfall").
+ */
+export default async function TeachersPage() {
+  const supabase = await createClient();
+
+  let teachers: any[] = [];
+
+  if (supabase) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id,full_name,email,phone,is_active,created_at')
+      .eq('role', 'teacher')
+      .order('full_name');
+
+    teachers = data || [];
+  }
+
+  return <TeachersManagement initialTeachers={teachers} />;
+}
