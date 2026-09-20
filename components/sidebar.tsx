@@ -243,14 +243,16 @@ export default function Sidebar({
             Notifications
           </Link>
 
-          <Link
-            className="nav-item"
-            href="/examinations"
-            onClick={closeSidebar}
-          >
-            <ShieldCheck size={18} />
-            Examinations
-          </Link>
+          {!student && (
+            <Link
+              className="nav-item"
+              href="/examinations"
+              onClick={closeSidebar}
+            >
+              <ShieldCheck size={18} />
+              Examinations
+            </Link>
+          )}
 
           {admin && (
             <Link
