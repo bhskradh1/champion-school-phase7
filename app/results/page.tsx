@@ -67,6 +67,9 @@ export default async function ResultsPage() {
       total_max_marks,
       percentage,
       grade,
+      gpa,
+      result_status,
+      failed_subjects,
       rank,
       is_published,
       generated_at,
@@ -89,6 +92,8 @@ export default async function ResultsPage() {
         max_marks,
         percentage,
         grade,
+        pass_marks,
+        is_pass,
         subjects(
           name,
           code
