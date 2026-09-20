@@ -66,7 +66,7 @@ export default async function NotificationsPage() {
   } = await supabase
     .from('notifications')
     .select(
-      'id,announcement_id,kind,title,body,created_at,read_at'
+      'id,announcement_id,thread_id,kind,title,body,created_at,read_at'
     )
     .eq(
       'recipient_id',
