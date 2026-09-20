@@ -18,6 +18,7 @@ import {
 import { useEffect, useState } from 'react';
 
 import SignOut from './sign-out';
+import { useUnreadNotifications } from './use-unread-notifications';
 
 export default function Sidebar({
   role = 'admin',
@@ -25,6 +26,7 @@ export default function Sidebar({
   role?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const unreadNotifications = useUnreadNotifications();
 
   const admin = role === 'admin';
   const teacher = role === 'teacher';
@@ -241,6 +243,11 @@ export default function Sidebar({
           >
             <Bell size={18} />
             Notifications
+            {unreadNotifications > 0 && (
+              <span className="nav-badge">
+                {unreadNotifications > 99 ? '99+' : unreadNotifications}
+              </span>
+            )}
           </Link>
 
           {!student && (
