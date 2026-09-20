@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
 // /signup is where invited people create their password (opened from the invitation email).
-const PUBLIC_PATHS = ['/', '/login', '/signup'];
+const PUBLIC_PATHS = ['/', '/login', '/signup', '/register'];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
