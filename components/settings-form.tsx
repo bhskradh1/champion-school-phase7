@@ -17,11 +17,12 @@ const SCALE = [
 export default function SettingsForm({
   initial,
 }: {
-  initial: { threads: number; replies: number; classTeacherPublish: boolean };
+  initial: { threads: number; replies: number; classTeacherPublish: boolean; approvalMode: string };
 }) {
   const [threads, setThreads] = useState(String(initial.threads));
   const [replies, setReplies] = useState(String(initial.replies));
   const [publish, setPublish] = useState(initial.classTeacherPublish);
+  const [approvalMode, setApprovalMode] = useState(initial.approvalMode);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
@@ -50,6 +51,7 @@ export default function SettingsForm({
         { setting_key: 'discussion_thread_limit', setting_value: t, updated_by: by, updated_at: now },
         { setting_key: 'discussion_message_limit', setting_value: r, updated_by: by, updated_at: now },
         { setting_key: 'class_teacher_can_publish_results', setting_value: publish, updated_by: by, updated_at: now },
+        { setting_key: 'student_approval_mode', setting_value: approvalMode, updated_by: by, updated_at: now },
       ],
       { onConflict: 'setting_key' }
     );
@@ -73,6 +75,24 @@ export default function SettingsForm({
           </label>
           <label>Replies per student per day
             <input type="number" min="0" max="500" value={replies} onChange={(e) => setReplies(e.target.value)} />
+          </label>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-head">
+          <div>
+            <h3>New student approval</h3>
+            <p>Who must approve a student who registers themselves.</p>
+          </div>
+        </div>
+        <div className="form-grid">
+          <label>Approval mode
+            <select value={approvalMode} onChange={(e) => setApprovalMode(e.target.value)}>
+              <option value="class_teacher">Class teacher (admin can also approve)</option>
+              <option value="admin">Admin only</option>
+              <option value="both">Both: class teacher first, then admin gives final approval</option>
+            </select>
           </label>
         </div>
       </section>
