@@ -37,7 +37,7 @@ const [busy,setBusy]=useState(false); const [notice,setNotice]=useState('');
         if(error) throw error;
         inserted={id:data};
       } else {
-        const {data,error}=await supabase.from('discussion_threads').insert({author_id:(await supabase.auth.getUser()).data.user?.id,audience,class_id:audience==='class'?selectedScope?.class_id:null,section_id:audience==='class'?selectedScope?.section_id:null,title:title.trim(),body:body.trim(),kind:'thread'}).select('id,author_id,audience,class_id,section_id,kind,title,body,created_at,is_locked,is_deleted,created_day').single();
+        const {data,error}=await supabase.from('discussion_threads').insert({author_id:(await supabase.auth.getSession()).data.session?.user?.id,audience,class_id:audience==='class'?selectedScope?.class_id:null,section_id:audience==='class'?selectedScope?.section_id:null,title:title.trim(),body:body.trim(),kind:'thread'}).select('id,author_id,audience,class_id,section_id,kind,title,body,created_at,is_locked,is_deleted,created_day').single();
         if(error) throw error; inserted=data;
       }
       setNotice('Posted successfully.'); setTitle(''); setBody(''); setComposerPollOptions(['','']);
@@ -47,11 +47,11 @@ const [busy,setBusy]=useState(false); const [notice,setNotice]=useState('');
   }
   async function refresh(){
     if(!supabase) return;
-    const {data:t}=await supabase.from('discussion_threads').select('id,author_id,audience,class_id,section_id,kind,title,body,created_at,is_locked,is_deleted,created_day,profiles!discussion_threads_author_id_fkey(full_name)').eq('is_deleted',false).order('created_at',{ascending:false});
+    const {data:t}=await supabase.from('discussion_threads').select('id,author_id,audience,class_id,section_id,kind,title,body,created_at,is_locked,is_deleted,created_day,profiles!discussion_threads_author_id_fkey(full_name)').eq('is_deleted',false).order('created_at',{ascending:false}).limit(60);
     if(t) setThreads(t);
     const ids=(t||[]).map(x=>x.id); if(ids.length){const [{data:r},{data:v},{data:o}]=await Promise.all([supabase.from('discussion_replies').select('id,thread_id,author_id,body,created_at,profiles!discussion_replies_author_id_fkey(full_name)').in('thread_id',ids).eq('is_deleted',false).order('created_at'),supabase.from('discussion_poll_votes').select('id,thread_id,option_id,voter_id,created_at').in('thread_id',ids),supabase.from('discussion_poll_options').select('id,thread_id,label,position').in('thread_id',ids).order('position')]); setReplies(r||[]); setVotes(v||[]); setPollOptionsData(o||[])}
   }
-  async function reply(threadId:string){ if(!supabase)return; const text=replyText[threadId]?.trim(); if(!text) return; const user=(await supabase.auth.getUser()).data.user; if(!user)return; const {error}=await supabase.from('discussion_replies').insert({thread_id:threadId,author_id:user.id,body:text}); if(error)setNotice(error.message); else {setReplyText({...replyText,[threadId]:''}); await refresh();}}
+  async function reply(threadId:string){ if(!supabase)return; const text=replyText[threadId]?.trim(); if(!text) return; const user=(await supabase.auth.getSession()).data.session?.user; if(!user)return; const {error}=await supabase.from('discussion_replies').insert({thread_id:threadId,author_id:user.id,body:text}); if(error)setNotice(error.message); else {setReplyText({...replyText,[threadId]:''}); await refresh();}}
   async function vote(threadId:string,optionId:string){if(!supabase)return;setBusy(true);const {error}=await supabase.rpc('vote_discussion_poll',{p_thread_id:threadId,p_option_id:optionId}); if(error)setNotice(error.message); else await refresh();setBusy(false)}
   async function removeThread(id:string){if(!supabase)return;if(!confirm('Delete this discussion?'))return; const {error}=await supabase.from('discussion_threads').update({is_deleted:true}).eq('id',id); if(error)setNotice(error.message); else await refresh();}
   async function toggleLock(t:Thread){if(!supabase)return;if(role!=='admin')return;const {error}=await supabase.from('discussion_threads').update({is_locked:!t.is_locked}).eq('id',t.id);if(error)setNotice(error.message);else await refresh()}
