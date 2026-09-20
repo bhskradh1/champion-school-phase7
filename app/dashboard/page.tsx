@@ -16,10 +16,20 @@ import {
 
 import Sidebar from '@/components/sidebar';
 import SignOut from '@/components/sign-out';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth/current-user';
 
 export default async function Dashboard() {
-  const supabase = await createClient();
+  /*
+   * PERFORMANCE:
+   *
+   * OLD: getUser() [network call to Supabase Auth]
+   *        -> profile query
+   *          -> role queries             = 4 round trips in a row
+   *
+   * NEW: getCurrentUser() [verifies the token locally + 1 profile query]
+   *        -> ALL role queries at the same time  = 2 round trips
+   */
+  const { supabase, userId, profile, claims } = await getCurrentUser();
 
   let displayName = 'School Admin';
   let role = 'admin';
@@ -30,159 +40,79 @@ export default async function Dashboard() {
   let studentCount = 0;
   let unreadNotifications = 0;
 
-  if (supabase) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  if (supabase && userId) {
+    const email = (claims as { email?: string } | null)?.email;
 
-    if (user) {
-      const [
-        profileResult,
-        unreadResult,
-      ] = await Promise.all([
+    displayName =
+      profile?.full_name ||
+      email?.split('@')[0] ||
+      displayName;
+
+    role = profile?.role || role;
+
+    // Filtering by recipient_id lets Postgres use the notifications index.
+    const unreadQuery = supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('recipient_id', userId)
+      .is('read_at', null);
+
+    const pendingQuery = () =>
+      supabase
+        .from('student_approval_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending');
+
+    if (role === 'student') {
+      const [unreadResult, enrollmentResult] = await Promise.all([
+        unreadQuery,
         supabase
-          .from('profiles')
+          .from('student_enrollments')
           .select(
-            'full_name, role'
+            'admission_no,roll_no,classes(name,grade),sections(name),academic_years(name)'
           )
-          .eq('id', user.id)
-          .single(),
-
-        supabase
-          .from('notifications')
-          .select('id', {
-            count: 'exact',
-            head: true,
-          })
-          .is('read_at', null),
+          .eq('student_id', userId)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
       ]);
 
-      const profile =
-        profileResult.data;
-
-      displayName =
-        profile?.full_name ||
-        user.email?.split('@')[0] ||
-        displayName;
-
-      role =
-        profile?.role ||
-        role;
-
-      unreadNotifications =
-        unreadResult.count || 0;
-
-      if (role === 'student') {
-        const { data: e } =
-          await supabase
-            .from(
-              'student_enrollments'
-            )
-            .select(
-              'admission_no,roll_no,classes(name,grade),sections(name),academic_years(name)'
-            )
-            .eq(
-              'student_id',
-              user.id
-            )
-            .eq(
-              'is_active',
-              true
-            )
-            .order(
-              'created_at',
-              {
-                ascending: false,
-              }
-            )
-            .limit(1)
-            .maybeSingle();
-
-        enrollment = e;
-      }
-
-      if (role === 'teacher') {
-        const [
-          assignmentsResult,
-          pendingResult,
-        ] = await Promise.all([
+      unreadNotifications = unreadResult.count || 0;
+      enrollment = enrollmentResult.data;
+    } else if (role === 'teacher') {
+      const [unreadResult, assignmentsResult, pendingResult] =
+        await Promise.all([
+          unreadQuery,
           supabase
-            .from(
-              'teacher_assignments'
-            )
+            .from('teacher_assignments')
             .select(
               'id,class_id,section_id,subject_id,is_class_teacher,classes(name,grade),sections(name),subjects(name)'
             )
-            .eq(
-              'teacher_id',
-              user.id
-            ),
-
-          supabase
-            .from(
-              'student_approval_requests'
-            )
-            .select('id', {
-              count: 'exact',
-              head: true,
-            })
-            .eq(
-              'status',
-              'pending'
-            ),
+            .eq('teacher_id', userId),
+          pendingQuery(),
         ]);
 
-        assignments =
-          assignmentsResult.data ||
-          [];
-
-        pending =
-          pendingResult.count ||
-          0;
-      }
-
-      if (role === 'admin') {
-        const [
-          studentCountResult,
-          pendingResult,
-        ] = await Promise.all([
+      unreadNotifications = unreadResult.count || 0;
+      assignments = assignmentsResult.data || [];
+      pending = pendingResult.count || 0;
+    } else if (role === 'admin') {
+      const [unreadResult, studentCountResult, pendingResult] =
+        await Promise.all([
+          unreadQuery,
           supabase
             .from('profiles')
-            .select('id', {
-              count: 'exact',
-              head: true,
-            })
-            .eq(
-              'role',
-              'student'
-            )
-            .eq(
-              'is_active',
-              true
-            ),
-
-          supabase
-            .from(
-              'student_approval_requests'
-            )
-            .select('id', {
-              count: 'exact',
-              head: true,
-            })
-            .eq(
-              'status',
-              'pending'
-            ),
+            .select('id', { count: 'exact', head: true })
+            .eq('role', 'student')
+            .eq('is_active', true),
+          pendingQuery(),
         ]);
 
-        studentCount =
-          studentCountResult.count ||
-          0;
-
-        pending =
-          pendingResult.count ||
-          0;
-      }
+      unreadNotifications = unreadResult.count || 0;
+      studentCount = studentCountResult.count || 0;
+      pending = pendingResult.count || 0;
+    } else {
+      unreadNotifications = (await unreadQuery).count || 0;
     }
   }
 
