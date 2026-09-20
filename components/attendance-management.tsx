@@ -150,6 +150,82 @@ export default function AttendanceManagement({
     ? `${selected.class_id}:${selected.section_id}:${date}`
     : '';
 
+  /*
+   * PERFORMANCE: the server only sends TODAY's attendance. When the teacher
+   * picks another date or class, we fetch just that one day for that one
+   * section. (Before, the page downloaded up to 5,000 rows on every visit,
+   * and any older date outside those rows silently showed everyone as
+   * "present" - which could then be saved by mistake.)
+   */
+  const [loadedKeys, setLoadedKeys] = useState<Set<string>>(
+    () =>
+      new Set(
+        scopes.map(
+          (scope) =>
+            `${scope.class_id}:${scope.section_id}:${initialDate}`
+        )
+      )
+  );
+
+  const loadingRecords =
+    Boolean(recordKey) &&
+    Boolean(date) &&
+    !loadedKeys.has(recordKey);
+
+  useEffect(() => {
+    if (
+      !selected ||
+      !date ||
+      !recordKey ||
+      loadedKeys.has(recordKey)
+    ) {
+      return;
+    }
+
+    const supabase = createClient();
+
+    if (!supabase) {
+      setLoadedKeys((previous) =>
+        new Set(previous).add(recordKey)
+      );
+      return;
+    }
+
+    let cancelled = false;
+
+    supabase
+      .from('attendance_records')
+      .select('student_id,status,note')
+      .eq('class_id', selected.class_id)
+      .eq('section_id', selected.section_id)
+      .eq('attendance_date', date)
+      .then(({ data, error: loadError }) => {
+        if (cancelled) {
+          return;
+        }
+
+        if (loadError) {
+          setError(loadError.message);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          setRecords((previous) => ({
+            ...previous,
+            [recordKey]: data as unknown as RecordRow[],
+          }));
+        }
+
+        setLoadedKeys((previous) =>
+          new Set(previous).add(recordKey)
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selected, recordKey, date, loadedKeys]);
+
   const current = useMemo(() => {
     const saved =
       records[recordKey];
@@ -425,7 +501,7 @@ export default function AttendanceManagement({
               onClick={() =>
                 markAll('present')
               }
-              disabled={!selected}
+              disabled={!selected || loadingRecords}
             >
               <Check size={15} />
               Mark all present
@@ -436,6 +512,7 @@ export default function AttendanceManagement({
               disabled={
                 !selected ||
                 busy ||
+                loadingRecords ||
                 !roster.length
               }
               onClick={save}
@@ -453,6 +530,12 @@ export default function AttendanceManagement({
             </button>
           </div>
         </div>
+
+        {loadingRecords && (
+          <div className="loading-row">
+            Loading saved attendance…
+          </div>
+        )}
 
         {message && (
           <div className="form-success">
