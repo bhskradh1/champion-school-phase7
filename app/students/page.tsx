@@ -115,6 +115,7 @@ export default async function StudentsPage() {
       .select(`
         id,
         student_id,
+        status,
         created_at,
         requested_class,
         requested_section,
@@ -123,7 +124,7 @@ export default async function StudentsPage() {
           email
         )
       `)
-      .eq('status', 'pending')
+      .in('status', ['pending', 'teacher_approved'])
       .order('created_at', {
         ascending: false,
       }),
