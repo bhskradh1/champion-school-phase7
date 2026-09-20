@@ -1,9 +1,10 @@
 'use client';
 
-import { useDeferredValue, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle2, Edit3, Mail, Phone, Plus, RefreshCw, Search, ShieldCheck, Trash2, UserRound, X } from 'lucide-react';
 import ApprovalActions from '@/components/approval-actions';
+import { createClient } from '@/lib/supabase/client';
 
 type Option = { id: string; name: string; grade?: number; class_id?: string; academic_year_id?: string; is_current?: boolean };
 type Student = {
@@ -60,7 +61,7 @@ export default function StudentManagement({
       <div className="pending-cards">{requests.map(r => <div className="pending-card" key={r.id}>
         <div className="avatar student">{(r.student?.full_name || 'Student').split(' ').map(x=>x[0]).slice(0,2).join('')}</div>
         <div className="person"><strong>{r.student?.full_name || 'Student'}</strong><span>{r.student?.email || 'No email'} · Class {r.requested_class} · {r.requested_section}</span></div>
-        <ApprovalActions id={r.id}/>
+        <ApprovalActions id={r.id} status={(r as any).status} isAdmin={canManage}/>
       </div>)}</div>
     </section>}
 
@@ -107,6 +108,16 @@ function StudentModal({mode,student,classes,sections,years,onClose}:{mode:'add'|
   const [admissionNo,setAdmissionNo]=useState(student?.enrollment?.admission_no || '');
   const [rollNo,setRollNo]=useState(student?.enrollment?.roll_no?.toString() || '');
   const [active,setActive]=useState(student?.is_active ?? true);
+  const [details,setDetails]=useState({student_code:'',date_of_birth:'',gender:'',address:'',guardian_name:'',guardian_relation:'',guardian_phone:'',guardian_email:''});
+  const setD=(k:string,v:string)=>setDetails(d=>({...d,[k]:v}));
+  useEffect(()=>{
+    if(mode!=='edit'||!student) return;
+    const sb=createClient(); if(!sb) return;
+    sb.from('student_details').select('student_code,date_of_birth,gender,address,guardian_name,guardian_relation,guardian_phone,guardian_email').eq('student_id',student.id).maybeSingle().then(({data})=>{
+      if(data) setDetails({student_code:data.student_code||'',date_of_birth:data.date_of_birth||'',gender:data.gender||'',address:data.address||'',guardian_name:data.guardian_name||'',guardian_relation:data.guardian_relation||'',guardian_phone:data.guardian_phone||'',guardian_email:data.guardian_email||''});
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
   const [busy,setBusy]=useState(false),[error,setError]=useState('');
   const availableClasses=classes.filter(c=>!c.academic_year_id || c.academic_year_id===yearId);
 
@@ -121,6 +132,13 @@ function StudentModal({mode,student,classes,sections,years,onClose}:{mode:'add'|
       })});
       const data=await res.json();
       if(!res.ok) throw new Error(data.error||'Could not save student.');
+      // Personal details (date of birth, guardian, address...) are stored separately.
+      const sb=createClient();
+      const sid=data.student_id||student?.id;
+      if(sb&&sid){
+        const {error:detailsError}=await sb.from('student_details').upsert({student_id:sid,student_code:details.student_code.trim()||null,date_of_birth:details.date_of_birth||null,gender:details.gender||null,address:details.address.trim()||null,guardian_name:details.guardian_name.trim()||null,guardian_relation:details.guardian_relation.trim()||null,guardian_phone:details.guardian_phone.trim()||null,guardian_email:details.guardian_email.trim()||null,updated_at:new Date().toISOString()},{onConflict:'student_id'});
+        if(detailsError) throw new Error('The student was saved, but the personal details were not: '+(detailsError.message.includes('uq_student_details_code')?'that Student ID is already used by another student.':detailsError.message));
+      }
       router.refresh();
       onClose();
     }catch(e:any){setError(e.message)}finally{setBusy(false)}
@@ -149,6 +167,17 @@ function StudentModal({mode,student,classes,sections,years,onClose}:{mode:'add'|
         <label>Class<select value={classId} onChange={e=>changeClass(e.target.value)}><option value="">Select class</option>{availableClasses.map(c=><option key={c.id} value={c.id}>Class {c.grade} · {c.name}</option>)}</select></label>
         <label>Section<select value={sectionId} onChange={e=>setSectionId(e.target.value)} disabled={!classId}><option value="">Select section</option>{availableSections.map(s=><option key={s.id} value={s.id}>{s.name}{s.name===student?.enrollment?.section_id?'':''}</option>)}</select></label>
         <label>Roll no.<input type="number" min="0" value={rollNo} onChange={e=>setRollNo(e.target.value)} placeholder="1"/></label>
+      </div>
+      <h4 style={{margin:'16px 0 8px'}}>Personal &amp; guardian details</h4>
+      <div className="form-grid">
+        <label>Student ID<input value={details.student_code} onChange={e=>setD('student_code',e.target.value)} placeholder="CES-2083-001"/></label>
+        <label>Date of birth<input type="date" value={details.date_of_birth} onChange={e=>setD('date_of_birth',e.target.value)}/></label>
+        <label>Gender<select value={details.gender} onChange={e=>setD('gender',e.target.value)}><option value="">Select</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></label>
+        <label>Address<input value={details.address} onChange={e=>setD('address',e.target.value)}/></label>
+        <label>Guardian name<input value={details.guardian_name} onChange={e=>setD('guardian_name',e.target.value)}/></label>
+        <label>Relation<input value={details.guardian_relation} onChange={e=>setD('guardian_relation',e.target.value)} placeholder="Father, Mother…"/></label>
+        <label>Guardian phone<input value={details.guardian_phone} onChange={e=>setD('guardian_phone',e.target.value)}/></label>
+        <label>Guardian email<input type="email" value={details.guardian_email} onChange={e=>setD('guardian_email',e.target.value)}/></label>
       </div>
       {mode==='edit' && <label className="toggle-row"><input type="checkbox" checked={active} onChange={e=>setActive(e.target.checked)}/><span><strong>Active student</strong><small>Inactive students remain in history but are not treated as current.</small></span></label>}
       {mode==='add' && <div className="form-note"><Mail size={15}/> The student will receive a secure Supabase invitation. Never share the service-role key with the browser.</div>}
