@@ -177,6 +177,9 @@ export default function Sidebar({
             <img
               src="/school-logo.jpg"
               alt="Champion English School"
+              width={43}
+              height={43}
+              decoding="async"
             />
 
             <div>
