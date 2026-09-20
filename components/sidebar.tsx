@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import {
+  BarChart3,
   Bell,
   BookOpen,
   CalendarCheck2,
@@ -10,6 +11,7 @@ import {
   LayoutDashboard,
   MessageSquareText,
   Menu,
+  ScrollText,
   Settings,
   ShieldCheck,
   Users,
@@ -258,6 +260,28 @@ export default function Sidebar({
             >
               <ShieldCheck size={18} />
               Examinations
+            </Link>
+          )}
+
+          {!student && (
+            <Link
+              className="nav-item"
+              href="/reports"
+              onClick={closeSidebar}
+            >
+              <BarChart3 size={18} />
+              Reports
+            </Link>
+          )}
+
+          {admin && (
+            <Link
+              className="nav-item"
+              href="/audit"
+              onClick={closeSidebar}
+            >
+              <ScrollText size={18} />
+              Audit logs
             </Link>
           )}
 
