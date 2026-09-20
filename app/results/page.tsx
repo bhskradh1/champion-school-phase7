@@ -80,6 +80,19 @@ export default async function ResultsPage() {
       ),
       sections(
         name
+      ),
+      exam_result_items(
+        id,
+        result_id,
+        subject_id,
+        marks,
+        max_marks,
+        percentage,
+        grade,
+        subjects(
+          name,
+          code
+        )
       )
     `)
     .eq(
@@ -115,70 +128,21 @@ export default async function ResultsPage() {
     );
   }
 
-  const safeResults =
-    results || [];
-
   /*
-   * Extract result IDs from the results
-   * we already fetched.
-   *
-   * No duplicate exam_results query.
+   * PERFORMANCE: the subject rows now come back inside the same query
+   * (exam_result_items above), so there is no second round trip.
+   * Here we just split them back out for the component.
    */
-  const resultIds =
-    safeResults.map(
-      (result) => result.id
-    );
+  const safeResults: any[] = [];
+  const items: any[] = [];
 
-  let items: any[] = [];
+  for (const row of (results || []) as any[]) {
+    const { exam_result_items, ...result } = row;
+    safeResults.push(result);
 
-  /*
-   * Only query result items when there
-   * are actually published results.
-   */
-  if (resultIds.length > 0) {
-    const {
-      data: resultItems,
-      error: itemsError,
-    } = await supabase
-      .from('exam_result_items')
-      .select(`
-        id,
-        result_id,
-        subject_id,
-        marks,
-        max_marks,
-        percentage,
-        grade,
-        subjects(
-          name,
-          code
-        )
-      `)
-      .in(
-        'result_id',
-        resultIds
-      );
-
-    if (itemsError) {
-      return (
-        <Shell role={role}>
-          <div className="empty-panel">
-            <GraduationCap size={28} />
-
-            <h3>
-              Unable to load result details
-            </h3>
-
-            <p>
-              {itemsError.message}
-            </p>
-          </div>
-        </Shell>
-      );
+    for (const item of exam_result_items || []) {
+      items.push(item);
     }
-
-    items =
-      resultItems || [];
   }
 
   return (
