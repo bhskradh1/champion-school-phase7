@@ -26,7 +26,7 @@ export default function LoginPage() {
   return <main className="login-page">
     <div className="login-glow glow-one"/><div className="login-glow glow-two"/>
     <section className="login-card">
-      <div className="login-brand"><img src="/school-logo.jpg" alt="Champion English School"/><div><strong>Champion</strong><span>English School</span></div></div>
+      <div className="login-brand"><img src="/school-logo.jpg" alt="Champion English School" width={47} height={47} decoding="async"/><div><strong>Champion</strong><span>English School</span></div></div>
       <div className="login-copy"><span className="section-kicker">SCHOOL MANAGEMENT PORTAL</span><h1>Welcome back.</h1><p>Sign in to manage your school workspace securely.</p></div>
       <form onSubmit={submit} className="login-form">
         <label>Email address<div className="input-wrap"><Mail size={18}/><input type="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@championschool.edu.np"/></div></label>
