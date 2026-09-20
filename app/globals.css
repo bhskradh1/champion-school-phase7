@@ -232,3 +232,6 @@
     padding: 22px 16px;
   }
 }
+
+/* Live unread badge in the sidebar */
+.nav-badge{margin-left:auto;min-width:19px;height:19px;padding:0 6px;border-radius:10px;background:#ef4f6f;color:#fff;font-size:10px;font-weight:800;display:inline-grid;place-items:center}
