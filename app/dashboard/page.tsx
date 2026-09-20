@@ -2,7 +2,6 @@ import Link from 'next/link';
 
 import {
   ArrowUpRight,
-  Bell,
   BookOpen,
   CalendarCheck2,
   ChevronDown,
@@ -16,6 +15,7 @@ import {
 
 import Sidebar from '@/components/sidebar';
 import SignOut from '@/components/sign-out';
+import NotificationBell from '@/components/notification-bell';
 import { getCurrentUser } from '@/lib/auth/current-user';
 
 export default async function Dashboard() {
@@ -135,16 +135,9 @@ export default async function Dashboard() {
       <main className="main">
         <header className="topbar">
           <div className="top-actions">
-            <Link
-              className="icon-btn"
-              href="/notifications"
-              aria-label="Open notification centre"
-            >
-              <Bell size={19} />
-
-              {unreadNotifications >
-                0 && <i />}
-            </Link>
+            <NotificationBell
+              initialUnread={unreadNotifications}
+            />
 
             {role === 'admin' && (
               <SignOut />
