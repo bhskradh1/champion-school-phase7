@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
+import { getSiteUrl } from '@/lib/site-url';
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -48,7 +49,9 @@ export async function POST(request: Request) {
   }
 
   const { data: invited, error: inviteError } = await service.auth.admin.inviteUserByEmail(email, {
-    data: { full_name: name, role: 'student' }
+    data: { full_name: name, role: 'student' },
+    // The link in the email opens the "Create your account" page of THIS website.
+    redirectTo: `${getSiteUrl(request)}/signup`
   });
   if (inviteError || !invited.user) {
     return NextResponse.json({ error: inviteError?.message || 'Could not create the student account. The email may already be registered.' }, { status: 400 });
