@@ -58,6 +58,12 @@ export default async function AttendancePage() {
    * This is already a single query, so keep it simple.
    */
   if (role === 'student') {
+    const { data: currentYear } = await supabase
+      .from('academic_years')
+      .select('starts_on')
+      .eq('is_current', true)
+      .maybeSingle();
+
     const { data: records } = await supabase
       .from('attendance_records')
       .select(
@@ -81,6 +87,7 @@ export default async function AttendancePage() {
       <Shell role={role}>
         <AttendanceStudentView
           records={records || []}
+          yearStart={currentYear?.starts_on}
         />
       </Shell>
     );
