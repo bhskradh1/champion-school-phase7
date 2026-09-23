@@ -37,6 +37,7 @@ export default async function Dashboard() {
 
   let enrollment: any = null;
   let approval: any = null;
+  let studentStats: StudentStats = { attendancePct: null, pendingAssignments: 0, latestResult: null, newReplies: 0 };
   let assignments: any[] = [];
   let pending = 0;
   let marksPending = 0;
@@ -68,7 +69,12 @@ export default async function Dashboard() {
         .eq('status', 'pending');
 
     if (role === 'student') {
-      const [unreadResult, enrollmentResult, approvalResult] = await Promise.all([
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kathmandu' });
+      const monthStart = today.slice(0, 8) + '01';
+      const attendanceCount = () =>
+        supabase.from('attendance_records').select('id', { count: 'exact', head: true }).eq('student_id', userId).gte('attendance_date', monthStart);
+
+      const [unreadResult, enrollmentResult, approvalResult, attendedResult, monthTotalResult, assignmentsResult, latestResultQuery, repliesResult] = await Promise.all([
         unreadQuery,
         supabase
           .from('student_enrollments')
@@ -88,11 +94,41 @@ export default async function Dashboard() {
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
+        // Cards for the student dashboard (all fetched at the same time)
+        attendanceCount().in('status', ['present', 'late']),
+        attendanceCount(),
+        supabase
+          .from('assignments')
+          .select('id,assignment_submissions(id)')
+          .eq('status', 'published')
+          .gte('due_at', new Date().toISOString())
+          .limit(50),
+        supabase
+          .from('exam_results')
+          .select('percentage,grade,result_status,examinations(name)')
+          .eq('student_id', userId)
+          .eq('is_published', true)
+          .order('generated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from('notifications')
+          .select('id', { count: 'exact', head: true })
+          .eq('recipient_id', userId)
+          .eq('kind', 'discussion_reply')
+          .is('read_at', null),
       ]);
 
       unreadNotifications = unreadResult.count || 0;
       enrollment = enrollmentResult.data;
       approval = approvalResult.data;
+      const monthTotal = monthTotalResult.count || 0;
+      studentStats = {
+        attendancePct: monthTotal ? Math.round(((attendedResult.count || 0) / monthTotal) * 1000) / 10 : null,
+        pendingAssignments: ((assignmentsResult.data as any[]) || []).filter((a) => !(a.assignment_submissions || []).length).length,
+        latestResult: latestResultQuery.data,
+        newReplies: repliesResult.count || 0,
+      };
     } else if (role === 'teacher') {
       const [unreadResult, assignmentsResult, pendingResult, marksResult] =
         await Promise.all([
@@ -242,6 +278,7 @@ export default async function Dashboard() {
                 enrollment
               }
               approval={approval}
+              stats={studentStats}
             />
           )}
         </div>
@@ -711,14 +748,23 @@ function TeacherDashboard({
   );
 }
 
+type StudentStats = {
+  attendancePct: number | null;
+  pendingAssignments: number;
+  latestResult: any;
+  newReplies: number;
+};
+
 function StudentDashboard({
   first,
   enrollment,
   approval,
+  stats,
 }: {
   first: string;
   enrollment: any;
   approval: any;
+  stats: StudentStats;
 }) {
   const c =
     enrollment?.classes;
@@ -814,6 +860,42 @@ function StudentDashboard({
             </small>
           </div>
         </div>
+
+        <Link href="/attendance" className="stat-card" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <div className="stat-icon blue"><CalendarCheck2 size={20} /></div>
+          <div className="stat-copy">
+            <span>Attendance this month</span>
+            <strong>{stats.attendancePct === null ? '—' : `${stats.attendancePct}%`}</strong>
+            <small>Present and late days</small>
+          </div>
+        </Link>
+
+        <Link href="/assignments" className="stat-card" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <div className="stat-icon violet"><ClipboardList size={20} /></div>
+          <div className="stat-copy">
+            <span>Assignments to do</span>
+            <strong>{stats.pendingAssignments}</strong>
+            <small>Due soon, not submitted yet</small>
+          </div>
+        </Link>
+
+        <Link href="/results" className="stat-card" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <div className="stat-icon blue"><GraduationCap size={20} /></div>
+          <div className="stat-copy">
+            <span>Latest result</span>
+            <strong>{stats.latestResult ? `${stats.latestResult.percentage}% · ${stats.latestResult.grade}` : '—'}</strong>
+            <small>{stats.latestResult?.examinations?.name || 'Nothing published yet'}</small>
+          </div>
+        </Link>
+
+        <Link href="/notifications" className="stat-card" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <div className="stat-icon violet"><MessageSquareText size={20} /></div>
+          <div className="stat-copy">
+            <span>New discussion replies</span>
+            <strong>{stats.newReplies}</strong>
+            <small>On your posts</small>
+          </div>
+        </Link>
       </section>
 
       <section className="quick-grid big">
