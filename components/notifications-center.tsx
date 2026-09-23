@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
 // Where each kind of notification takes you when clicked.
-const NOTIFICATION_PATHS:Record<string,string>={discussion_reply:'/discussions',assignment_posted:'/assignments',result_published:'/results',marks_entry_open:'/examinations',marks_correction:'/examinations',student_approval:'/dashboard'};
+const NOTIFICATION_PATHS:Record<string,string>={discussion_reply:'/discussions',assignment_posted:'/assignments',result_published:'/results',marks_entry_open:'/examinations',marks_correction:'/examinations',student_approval:'/dashboard',discussion_report:'/discussions'};
 
 export default function NotificationsCenter({notifications:initial}:{notifications:any[]}){
  const supabase=createClient();const router=useRouter();const [notifications,setNotifications]=useState(initial);const [busy,setBusy]=useState(false);const [notice,setNotice]=useState('');const unread=useMemo(()=>notifications.filter(n=>!n.read_at).length,[notifications]);
