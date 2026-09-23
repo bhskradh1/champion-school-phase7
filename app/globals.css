@@ -283,3 +283,10 @@ a.login-btn{text-decoration:none;display:flex;align-items:center;justify-content
 .audit-details{word-break:break-word}
 @media(max-width:760px){.audit-row{grid-template-columns:1fr}}
 .marks-view{padding:8px 4px 4px;display:grid;gap:8px}
+
+/* Polls and moderation */
+.poll-settings{display:grid;gap:8px;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#fafbfd}
+.poll-settings label:not(.assignment-check){display:grid;gap:4px;font-size:11px;font-weight:750;color:#69758b}
+.poll-option.selected{border-color:#2f6fed;background:#eef4ff}
+.link-btn{border:0;background:none;color:#8a94a8;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:2px 0}
+.link-btn:hover{color:#c13f52}
