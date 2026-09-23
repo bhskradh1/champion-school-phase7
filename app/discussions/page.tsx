@@ -45,15 +45,19 @@ export default async function DiscussionsPage(){
 
   const threads:any[]=(threadsResult.data as any[]|null)||[];
   const ids=threads.map((t:any)=>t.id);
-  let replies:any[]=[],votes:any[]=[],pollOptions:any[]=[];
+  let replies:any[]=[],votes:any[]=[],pollOptions:any[]=[],pollSettings:any[]=[],pollCounts:any[]=[];
   if(ids.length){
-    const [{data:r},{data:v},{data:o}]=await Promise.all([
+    const [{data:r},{data:v},{data:o},{data:st},{data:cn}]=await Promise.all([
       supabase.from('discussion_replies').select('id,thread_id,author_id,body,created_at,profiles!discussion_replies_author_id_fkey(full_name)').in('thread_id',ids).eq('is_deleted',false).order('created_at'),
       supabase.from('discussion_poll_votes').select('id,thread_id,option_id,voter_id,created_at').in('thread_id',ids),
       supabase.from('discussion_poll_options').select('id,thread_id,label,position').in('thread_id',ids).order('position')
-    ]); replies=r||[];votes=v||[];pollOptions=o||[];
+    ,
+      // poll rules (closing time, multiple choice, anonymous...) and totals per option
+      supabase.from('discussion_poll_settings').select('thread_id,ends_at,multiple_choice,is_anonymous,allow_change').in('thread_id',ids),
+      supabase.rpc('get_poll_counts',{p_thread_ids:ids})
+    ]); replies=r||[];votes=v||[];pollOptions=o||[];pollSettings=st||[];pollCounts=(cn as any[])||[];
   }
-  return <Shell role={role}><DiscussionsManagement role={role} threads={threads} replies={replies} votes={votes} pollOptions={pollOptions} scopes={scopes}/></Shell>;
+  return <Shell role={role}><DiscussionsManagement role={role} threads={threads} replies={replies} votes={votes} pollOptions={pollOptions} pollSettings={pollSettings} pollCounts={pollCounts} scopes={scopes}/></Shell>;
 }
 function Shell({role,children}:{role:string;children:React.ReactNode}){return <div className="app-shell"><Sidebar role={role}/><main className="main"><div className="content"><div className="page-head"><div><Link href="/dashboard" className="back-link"><ArrowLeft size={16}/> Dashboard</Link><h1>Discussions</h1><p>{role==='student'?'Ask questions, share ideas and vote with your school community.':'Create and participate in class and school-wide conversations.'}</p></div><div className="security-chip"><ShieldCheck size={16}/> {role==='admin'?'Moderation access':role==='teacher'?'Teaching scope':'Student community'}</div></div>{children}</div></main></div>}
 const demoScopes=[{class_id:'c8',section_id:'s8a',class_name:'Grade 8',section_name:'A',label:'Grade 8 · A'}];
