@@ -792,11 +792,47 @@ export default function AttendanceManagement({
   );
 }
 
+const PERIODS = [
+  ['month', 'This month'],
+  ['last_month', 'Last month'],
+  ['three_months', 'Last 3 months (term)'],
+  ['year', 'This academic year'],
+  ['all', 'All time'],
+] as const;
+
+function periodRange(period: string, yearStart?: string | null) {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kathmandu' });
+  const [y, m] = today.split('-').map(Number);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const first = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`;
+
+  if (period === 'month') return { from: `${y}-${pad(m)}-01`, to: today };
+  if (period === 'last_month') {
+    const start = new Date(y, m - 2, 1);
+    const end = new Date(y, m - 1, 0);
+    return { from: first(start), to: `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}` };
+  }
+  if (period === 'three_months') return { from: first(new Date(y, m - 4, 1)), to: today };
+  if (period === 'year') return { from: yearStart || `${y}-01-01`, to: today };
+  return { from: '', to: '' };
+}
+
 export function AttendanceStudentView({
-  records,
+  records: allRecords,
+  yearStart,
 }: {
   records: any[];
+  yearStart?: string | null;
 }) {
+  const [period, setPeriod] = useState('month');
+
+  const records = useMemo(() => {
+    const { from, to } = periodRange(period, yearStart);
+    return allRecords.filter(
+      (r) => (!from || r.attendance_date >= from) && (!to || r.attendance_date <= to)
+    );
+  }, [allRecords, period, yearStart]);
+
   const counts = {
     present: 0,
     absent: 0,
@@ -814,9 +850,23 @@ export function AttendanceStudentView({
     }
   }
 
+  const attended = counts.present + counts.late;
+  const percentage = records.length ? Math.round((attended / records.length) * 1000) / 10 : null;
+  const absentDays = records.filter((r) => r.status === 'absent');
+
   return (
     <div className="attendance-space">
+      <div className="row-actions" style={{ marginBottom: 12 }}>
+        {PERIODS.map(([key, label]) => (
+          <button key={key} className={period === key ? 'primary-btn small' : 'secondary-btn'} onClick={() => setPeriod(key)}>
+            {label}
+          </button>
+        ))}
+      </div>
+
       <section className="stat-grid">
+        <Stat icon={CalendarDays} label="Attendance" value={percentage === null ? '—' : `${percentage}%`} />
+
         <Stat
           icon={Check}
           label="Present"
@@ -841,6 +891,21 @@ export function AttendanceStudentView({
           value={counts.excused}
         />
       </section>
+
+      {absentDays.length > 0 && (
+        <section className="panel">
+          <div className="panel-head">
+            <div><h3>Absent days</h3><p>{absentDays.length} day{absentDays.length === 1 ? '' : 's'} in this period.</p></div>
+          </div>
+          <div className="row-actions">
+            {absentDays.map((r) => (
+              <span className="status pending" key={r.id}>
+                {new Date(`${r.attendance_date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="panel">
         <div className="panel-head">
@@ -931,7 +996,7 @@ function Stat({
 }: {
   icon: any;
   label: string;
-  value: number;
+  value: number | string;
 }) {
   return (
     <div className="stat-card">
